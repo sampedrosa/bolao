@@ -152,11 +152,24 @@ def apply_styles(show_sidebar: bool) -> None:
             font-size: 1.28rem;
         }
 
-        .st-key-login_select div[data-baseweb="select"] * {
+        .st-key-login_select div[data-baseweb="select"] div,
+        .st-key-login_select div[data-baseweb="select"] span,
+        .st-key-login_select div[data-baseweb="select"] input {
             font-size: 1.28rem;
             line-height: 1.2;
-            display: flex;
-            align-items: center;
+            color: #0d1320;
+        }
+
+        .st-key-login_select div[data-baseweb="select"] input {
+            display: block !important;
+            height: auto !important;
+            min-height: 0 !important;
+            padding: 0 !important;
+            caret-color: #0d1320;
+        }
+
+        .st-key-login_select div[data-baseweb="select"] svg {
+            color: #5c4a23;
         }
 
         div[role="option"] {
@@ -183,6 +196,13 @@ def apply_styles(show_sidebar: bool) -> None:
         .st-key-login_enter_btn button:hover:enabled {
             background: #17653f;
             border-color: #17653f;
+        }
+
+        .st-key-login_enter_btn button:disabled {
+            background: #fffdf7;
+            border-color: #d8ccb1;
+            color: #9a8d74;
+            opacity: 1;
         }
 
         .st-key-login_register_btn button,
@@ -418,6 +438,30 @@ def apply_styles(show_sidebar: bool) -> None:
             border-radius: 9px;
             font-size: 1.05rem;
             font-weight: 850;
+        }
+
+        .st-key-group_actions_bar > div[data-testid="stLayoutWrapper"] > div[data-testid="stHorizontalBlock"] button[data-testid="stBaseButton-primary"] {
+            background: #1f7a4d !important;
+            border-color: #1f7a4d !important;
+            color: #ffffff !important;
+        }
+
+        .st-key-group_actions_bar > div[data-testid="stLayoutWrapper"] > div[data-testid="stHorizontalBlock"] button[data-testid="stBaseButton-primary"]:hover:enabled {
+            background: #17653f !important;
+            border-color: #17653f !important;
+            color: #ffffff !important;
+        }
+
+        .st-key-group_actions_bar > div[data-testid="stLayoutWrapper"] > div[data-testid="stHorizontalBlock"] button[data-testid="stBaseButton-secondary"] {
+            background: #fffdf7 !important;
+            border-color: #d1b064 !important;
+            color: #0d1320 !important;
+        }
+
+        .st-key-group_actions_bar > div[data-testid="stLayoutWrapper"] > div[data-testid="stHorizontalBlock"] button[data-testid="stBaseButton-secondary"]:hover:enabled {
+            background: #ffffff !important;
+            border-color: #1f7a4d !important;
+            color: #17653f !important;
         }
 
         div[class*="st-key-group_"][class*="_gols"] {
