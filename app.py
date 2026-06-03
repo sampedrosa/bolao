@@ -866,6 +866,19 @@ def apply_styles(show_sidebar: bool) -> None:
             overflow-wrap: anywhere;
         }
 
+        .palpite-earned {
+            display: inline-flex;
+            align-items: center;
+            margin-left: 0.35rem;
+            padding: 0.08rem 0.38rem;
+            border-radius: 999px;
+            background: #e6f5ed;
+            color: #17653f;
+            font-size: 0.75rem;
+            font-weight: 900;
+            white-space: nowrap;
+        }
+
         .palpite-score {
             color: #5c4a23;
             text-align: right;
@@ -1965,12 +1978,7 @@ def brazil_player_points(
     return 3 * parse_existing_goal(player_row.get(goal_column))
 
 
-def calculate_participant_points(
-    participant: dict[str, Any],
-    jogos: pd.DataFrame,
-    jogadores: pd.DataFrame,
-) -> int:
-    guesses = get_guess_map(participant)
+def build_jogadores_lookup(jogadores: pd.DataFrame) -> dict[str, dict[str, Any]]:
     jogadores_by_name = {
         str(row["Nome"]): row.to_dict()
         for _, row in jogadores.iterrows()
@@ -1981,6 +1989,31 @@ def calculate_participant_points(
             for _, row in jogadores.iterrows()
         }
     )
+    return jogadores_by_name
+
+
+def participant_game_points(
+    participant: dict[str, Any],
+    game: pd.Series,
+    jogadores_by_name: dict[str, dict[str, Any]],
+) -> int:
+    if game["Fase"] != "Grupo" or not game_has_official_score(game):
+        return 0
+
+    guess = get_guess_map(participant).get(str(game["Id"]), {})
+    return (
+        score_prediction_for_game(guess, game)
+        + brazil_player_points(guess, game, jogadores_by_name)
+    )
+
+
+def calculate_participant_points(
+    participant: dict[str, Any],
+    jogos: pd.DataFrame,
+    jogadores: pd.DataFrame,
+) -> int:
+    guesses = get_guess_map(participant)
+    jogadores_by_name = build_jogadores_lookup(jogadores)
 
     total = 0
     for _, game in jogos.iterrows():
@@ -2196,6 +2229,7 @@ def format_dashboard_guess(
 def render_dashboard_guesses(
     game: pd.Series,
     participants: list[dict[str, Any]],
+    jogadores_by_name: dict[str, dict[str, Any]],
 ) -> None:
     if not participants:
         st.caption("Nenhum participante cadastrado ainda.")
@@ -2204,12 +2238,15 @@ def render_dashboard_guesses(
     rows = []
     for participant in ranked_participants(participants):
         guess_text, is_empty = format_dashboard_guess(participant, game)
+        points = participant_game_points(participant, game, jogadores_by_name)
+        points_badge = f'<span class="palpite-earned">+{points}</span>' if points > 0 else ""
         css_class = "palpite-row empty" if is_empty else "palpite-row"
         rows.append(
             '<div class="'
             + css_class
             + '"><span class="palpite-name">'
             + escape(str(participant.get("nome", "")))
+            + points_badge
             + '</span><span class="palpite-score">'
             + escape(guess_text)
             + "</span></div>"
@@ -2224,6 +2261,7 @@ def render_dashboard_guesses(
 def render_dashboard_results(
     jogos: pd.DataFrame,
     selecoes: pd.DataFrame,
+    jogadores: pd.DataFrame,
     participants: list[dict[str, Any]],
 ) -> None:
     st.markdown('<div class="dashboard-section-title">Resultados dos Jogos</div>', unsafe_allow_html=True)
@@ -2232,6 +2270,7 @@ def render_dashboard_results(
         for _, row in selecoes.iterrows()
         if str(row["Nome"]).strip()
     }
+    jogadores_by_name = build_jogadores_lookup(jogadores)
 
     with st.container(key="dashboard_results"):
         for phase, label in DASHBOARD_PHASES:
@@ -2256,7 +2295,7 @@ def render_dashboard_results(
                     )
 
                     if is_open:
-                        render_dashboard_guesses(game, participants)
+                        render_dashboard_guesses(game, participants, jogadores_by_name)
 
 
 def render_dashboard_sidebar(participantes: list[dict[str, Any]]) -> None:
@@ -2270,6 +2309,7 @@ def render_dashboard() -> None:
     participantes = data.get("participantes", [])
     jogos = load_jogos()
     selecoes = load_selecoes()
+    jogadores = load_jogadores()
     loading.empty()
     render_dashboard_sidebar(participantes)
     neymar_src = image_data_uri(FLAGS_DIR / "neymar.png")
@@ -2302,7 +2342,7 @@ def render_dashboard() -> None:
                 render_dashboard_ranking(participantes, show_title=False)
 
         with st.container(key="dashboard_body"):
-            render_dashboard_results(jogos, selecoes, participantes)
+            render_dashboard_results(jogos, selecoes, jogadores, participantes)
 
 
 def register_dialog(data: dict[str, Any], names: list[str]) -> None:
