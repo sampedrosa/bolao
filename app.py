@@ -1017,15 +1017,16 @@ def apply_styles(show_sidebar: bool) -> None:
             div[class*="st-key-group_"][class*="_gols"] input,
             div[class*="st-key-result_"][class*="_gols"] input,
             div[class*="st-key-result_"][class*="_scorer_goals"] input {
-                height: 2.35rem;
-                min-height: 2.35rem;
-                font-size: 0.95rem;
+                height: 2.62rem;
+                min-height: 2.62rem;
+                font-size: 1.08rem;
+                line-height: 1.2;
             }
 
             div[class*="st-key-group_"][class*="_gols"],
             div[class*="st-key-result_"][class*="_gols"],
             div[class*="st-key-result_"][class*="_scorer_goals"] {
-                min-height: 2.85rem;
+                min-height: 3.08rem;
             }
 
             .st-key-groups_shell div[data-testid="stHorizontalBlock"] {
@@ -1053,7 +1054,7 @@ def apply_styles(show_sidebar: bool) -> None:
 
             .st-key-groups_shell div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(3),
             .st-key-groups_shell div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(5) {
-                flex: 0 0 38px !important;
+                flex: 0 0 44px !important;
             }
 
             .st-key-groups_shell div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(4) {
