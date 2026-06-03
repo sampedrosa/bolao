@@ -34,6 +34,10 @@ ELIMINATORIAS_START = datetime(2026, 6, 24, 1, 0, tzinfo=TZ)
 ELIMINATORIAS_END = datetime(2026, 7, 18, 18, 0, tzinfo=TZ)
 
 VALID_RESULTS = {"1", "2", "E"}
+CACHE_TTL_FAST_SECONDS = 10
+CACHE_TTL_MATCHES_SECONDS = 30
+CACHE_TTL_STATIC_SECONDS = 3600
+SUPABASE_PAGE_SIZE = 1000
 
 DASHBOARD_PHASES = [
     ("Grupo", "Fase de Grupos"),
@@ -862,6 +866,24 @@ def apply_styles(show_sidebar: bool) -> None:
             font-weight: 850;
         }
 
+        .loading-panel {
+            min-height: 54vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #0d1320;
+            font-size: clamp(1.55rem, 4vw, 2.2rem);
+            font-weight: 850;
+        }
+
+        .loading-panel span {
+            border: 1px solid #d1b064;
+            border-radius: 14px;
+            background: #fffdf7;
+            box-shadow: 0 10px 24px rgba(41, 28, 9, 0.08);
+            padding: 1rem 1.4rem;
+        }
+
         @media (max-width: 640px) {
             .main .block-container {
                 padding-left: 0.85rem;
@@ -1117,6 +1139,16 @@ def rerun() -> None:
         st.experimental_rerun()
 
 
+def show_loading(message: str = "Carregando...") -> Any:
+    placeholder = st.empty()
+    placeholder.markdown(
+        f'<div class="loading-panel"><span>{escape(message)}</span></div>',
+        unsafe_allow_html=True,
+    )
+    return placeholder
+
+
+@st.cache_data(ttl=CACHE_TTL_STATIC_SECONDS, show_spinner=False)
 def read_regras() -> str:
     return REGRAS_PATH.read_text(encoding="utf-8")
 
@@ -1165,11 +1197,24 @@ def get_supabase_client() -> Any:
 
 def supabase_select(table: str, order_by: str | None = None) -> list[dict[str, Any]]:
     client = get_supabase_client()
-    query = client.table(table).select("*")
-    if order_by:
-        query = query.order(order_by)
-    response = query.execute()
-    return response.data or []
+    rows: list[dict[str, Any]] = []
+    offset = 0
+
+    while True:
+        query = client.table(table).select("*").range(
+            offset,
+            offset + SUPABASE_PAGE_SIZE - 1,
+        )
+        if order_by:
+            query = query.order(order_by)
+        response = query.execute()
+        page = response.data or []
+        rows.extend(page)
+        if len(page) < SUPABASE_PAGE_SIZE:
+            break
+        offset += SUPABASE_PAGE_SIZE
+
+    return rows
 
 
 def supabase_update(
@@ -1192,12 +1237,14 @@ def dataframe_from_records(
     return df[columns].fillna("").astype(str)
 
 
+@st.cache_data(ttl=CACHE_TTL_MATCHES_SECONDS, show_spinner=False)
 def load_jogos() -> pd.DataFrame:
     df = dataframe_from_records(supabase_select("jogos"), JOGOS_COLUMNS)
     df["_data"] = pd.to_datetime(df["Data"])
     return df.sort_values("_data").reset_index(drop=True)
 
 
+@st.cache_data(ttl=CACHE_TTL_STATIC_SECONDS, show_spinner=False)
 def load_selecoes() -> pd.DataFrame:
     return dataframe_from_records(
         supabase_select("selecoes", order_by="Nome"),
@@ -1205,6 +1252,7 @@ def load_selecoes() -> pd.DataFrame:
     )
 
 
+@st.cache_data(ttl=CACHE_TTL_MATCHES_SECONDS, show_spinner=False)
 def load_jogadores() -> pd.DataFrame:
     return dataframe_from_records(
         supabase_select("jogadores", order_by="Nome"),
@@ -1225,10 +1273,9 @@ def render_sidebar() -> None:
         st.markdown(read_regras())
 
 
-def image_data_uri(path: Path, crop_alpha: bool = False) -> str:
-    if not path.exists():
-        return ""
-
+@st.cache_data(ttl=CACHE_TTL_STATIC_SECONDS, show_spinner=False)
+def cached_image_data_uri(path_text: str, crop_alpha: bool, mtime: float) -> str:
+    path = Path(path_text)
     if crop_alpha:
         image = Image.open(path).convert("RGBA")
         bbox = image.getbbox()
@@ -1242,6 +1289,12 @@ def image_data_uri(path: Path, crop_alpha: bool = False) -> str:
     mime_type = "image/webp" if path.suffix.lower() == ".webp" else "image/png"
     encoded = base64.b64encode(path.read_bytes()).decode("ascii")
     return f"data:{mime_type};base64,{encoded}"
+
+
+def image_data_uri(path: Path, crop_alpha: bool = False) -> str:
+    if not path.exists():
+        return ""
+    return cached_image_data_uri(str(path), crop_alpha, path.stat().st_mtime)
 
 
 def empty_palpite(jogo_id: str) -> dict[str, Any]:
@@ -1258,7 +1311,13 @@ def jogo_ids() -> list[str]:
     return load_jogos()["Id"].tolist()
 
 
-def normalize_participant(participant: dict[str, Any]) -> dict[str, Any]:
+def normalize_participant(
+    participant: dict[str, Any],
+    game_ids: list[str] | tuple[str, ...] | None = None,
+) -> dict[str, Any]:
+    if game_ids is None:
+        game_ids = jogo_ids()
+
     participant.setdefault("nome", "")
     participant.setdefault("pontos", 0)
     finalistas = participant.get("finalistas") or {}
@@ -1270,7 +1329,7 @@ def normalize_participant(participant: dict[str, Any]) -> dict[str, Any]:
         if guess.get("jogo") is not None
     }
     normalized_guesses = []
-    for game_id in jogo_ids():
+    for game_id in game_ids:
         guess = empty_palpite(game_id)
         guess.update(guesses_by_id.get(game_id, {}))
         guess["jogo"] = game_id
@@ -1279,23 +1338,32 @@ def normalize_participant(participant: dict[str, Any]) -> dict[str, Any]:
     return participant
 
 
-def load_participantes() -> dict[str, Any]:
+@st.cache_data(ttl=CACHE_TTL_FAST_SECONDS, show_spinner=False)
+def load_participantes_cached(game_ids: tuple[str, ...]) -> dict[str, Any]:
     rows = supabase_select("participantes_atuais", order_by="nome")
     participantes = []
     for row in rows:
         participant = decode_json_field(row.get("dados"))
         if not participant.get("nome"):
             participant["nome"] = row.get("nome", "")
-        participantes.append(normalize_participant(participant))
+        participantes.append(normalize_participant(participant, game_ids))
     return {"participantes": participantes}
+
+
+def load_participantes(force_refresh: bool = False) -> dict[str, Any]:
+    if force_refresh:
+        load_participantes_cached.clear()
+    return load_participantes_cached(tuple(jogo_ids()))
 
 
 def save_participantes(
     data: dict[str, Any],
     only_names: list[str] | None = None,
 ) -> None:
+    game_ids = tuple(jogo_ids())
     data["participantes"] = [
-        normalize_participant(participant) for participant in data.get("participantes", [])
+        normalize_participant(participant, game_ids)
+        for participant in data.get("participantes", [])
     ]
 
     client = get_supabase_client()
@@ -1326,6 +1394,8 @@ def save_participantes(
                 "dados": participant,
             }
         ).execute()
+
+    load_participantes_cached.clear()
 
 
 def normalize_name(value: str) -> str:
@@ -1728,6 +1798,8 @@ def save_match_result(
                 player_name,
             )
 
+    load_jogos.clear()
+    load_jogadores.clear()
     return True, []
 
 
@@ -1993,10 +2065,12 @@ def render_dashboard_sidebar(participantes: list[dict[str, Any]]) -> None:
 
 
 def render_dashboard() -> None:
+    loading = show_loading()
     data = load_participantes()
     participantes = data.get("participantes", [])
     jogos = load_jogos()
     selecoes = load_selecoes()
+    loading.empty()
     render_dashboard_sidebar(participantes)
     neymar_src = image_data_uri(FLAGS_DIR / "neymar.png")
     neymar_html = (
@@ -2241,7 +2315,7 @@ def initialize_group_draft(participant: dict[str, Any]) -> None:
 
 
 def save_group_predictions(participant_name: str) -> tuple[bool, list[str]]:
-    data = load_participantes()
+    data = load_participantes(force_refresh=True)
     participant = next(
         (
             item
@@ -2366,12 +2440,14 @@ def confirm_save_dialog(participant_name: str) -> None:
 
 
 def render_groups() -> None:
+    loading = show_loading()
     data = load_participantes()
     participant = current_participant(data)
     if participant is None:
         go_to("login")
 
     if datetime.now(TZ) >= GROUP_DEADLINE:
+        loading.empty()
         st.warning("O prazo para preencher a fase de grupos já encerrou.")
         if st.button("Voltar", use_container_width=True):
             go_to("principal")
@@ -2382,6 +2458,7 @@ def render_groups() -> None:
     jogadores = sorted(set(load_jogadores()["Nome"].tolist()))
     player_options = [""] + jogadores
     group_games = load_jogos().query("Fase == 'Grupo'").copy()
+    loading.empty()
 
     with st.container(key="group_actions_bar"):
         actions = st.columns(2)
@@ -2435,11 +2512,13 @@ def render_groups() -> None:
 
 
 def render_resultados_admin() -> None:
+    loading = show_loading()
     data = load_participantes()
     participant = current_participant(data)
     if participant is None:
         go_to("login")
     if participant.get("nome") != "Samuel":
+        loading.empty()
         st.warning("Essa área é restrita.")
         if st.button("Voltar", use_container_width=True):
             go_to("principal")
@@ -2449,6 +2528,7 @@ def render_resultados_admin() -> None:
     jogadores = load_jogadores()
     jogador_options = [""] + sorted(jogadores["Nome"].tolist())
     game_options = [game_option_label(game) for _, game in jogos.iterrows()]
+    loading.empty()
 
     with st.container(key="groups_shell"):
         st.markdown('<div class="groups-title">Preencher Resultado</div>', unsafe_allow_html=True)
