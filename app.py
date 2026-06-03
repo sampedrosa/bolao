@@ -620,10 +620,16 @@ def apply_styles(show_sidebar: bool) -> None:
         }
 
         .st-key-desktop_ranking {
-            position: sticky;
-            top: 1.25rem;
-            width: 318px;
-            max-width: 318px;
+            position: fixed !important;
+            top: 9.25rem !important;
+            left: max(1rem, calc((100vw - 1180px) / 2)) !important;
+            width: 318px !important;
+            max-width: 318px !important;
+            max-height: calc(100vh - 10.25rem);
+            overflow-y: auto;
+            z-index: 50;
+            padding-right: 0.15rem;
+            scrollbar-width: thin;
         }
 
         .st-key-dashboard_body > div[data-testid="stLayoutWrapper"] > div[data-testid="stHorizontalBlock"] {
@@ -1077,6 +1083,10 @@ def apply_styles(show_sidebar: bool) -> None:
             }
 
             .st-key-dashboard_body [data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:first-child {
+                display: none !important;
+            }
+
+            .st-key-desktop_ranking {
                 display: none !important;
             }
 
