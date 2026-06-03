@@ -505,7 +505,8 @@ def apply_styles(show_sidebar: bool) -> None:
         }
 
         div[class*="st-key-group_"][class*="_gols"],
-        div[class*="st-key-result_"][class*="_gols"] {
+        div[class*="st-key-result_"][class*="_gols"],
+        div[class*="st-key-result_"][class*="_scorer_goals"] {
             min-height: 3.15rem;
             overflow: visible !important;
         }
@@ -515,13 +516,17 @@ def apply_styles(show_sidebar: bool) -> None:
         div[class*="st-key-group_"][class*="_gols"] [data-testid="stTextInputRootElement"],
         div[class*="st-key-result_"][class*="_gols"] > div,
         div[class*="st-key-result_"][class*="_gols"] [data-baseweb="input"],
-        div[class*="st-key-result_"][class*="_gols"] [data-testid="stTextInputRootElement"] {
+        div[class*="st-key-result_"][class*="_gols"] [data-testid="stTextInputRootElement"],
+        div[class*="st-key-result_"][class*="_scorer_goals"] > div,
+        div[class*="st-key-result_"][class*="_scorer_goals"] [data-baseweb="input"],
+        div[class*="st-key-result_"][class*="_scorer_goals"] [data-testid="stTextInputRootElement"] {
             min-height: 2.55rem;
             overflow: visible !important;
         }
 
         div[class*="st-key-group_"][class*="_gols"] input,
-        div[class*="st-key-result_"][class*="_gols"] input {
+        div[class*="st-key-result_"][class*="_gols"] input,
+        div[class*="st-key-result_"][class*="_scorer_goals"] input {
             text-align: center;
             height: 2.55rem;
             min-height: 2.55rem;
@@ -570,6 +575,20 @@ def apply_styles(show_sidebar: bool) -> None:
             color: #0d1320 !important;
             font-size: 1.28rem !important;
             font-weight: 850 !important;
+        }
+
+        .st-key-groups_shell div[class*="st-key-group_expander_"][class*="_complete"] div[data-testid="stExpander"] {
+            border-color: #1f7a4d;
+            background: #f4fbf7;
+            box-shadow: 0 8px 20px rgba(31, 122, 77, 0.12);
+        }
+
+        .st-key-groups_shell div[class*="st-key-group_expander_"][class*="_complete"] div[data-testid="stExpander"] details summary {
+            background: #e6f5ed;
+        }
+
+        .st-key-groups_shell div[class*="st-key-group_expander_"][class*="_complete"] div[data-testid="stExpander"] details summary p {
+            color: #17653f !important;
         }
 
         .st-key-groups_shell [data-testid="stVerticalBlockBorderWrapper"] {
@@ -983,14 +1002,16 @@ def apply_styles(show_sidebar: bool) -> None:
             }
 
             div[class*="st-key-group_"][class*="_gols"] input,
-            div[class*="st-key-result_"][class*="_gols"] input {
+            div[class*="st-key-result_"][class*="_gols"] input,
+            div[class*="st-key-result_"][class*="_scorer_goals"] input {
                 height: 2.35rem;
                 min-height: 2.35rem;
                 font-size: 0.95rem;
             }
 
             div[class*="st-key-group_"][class*="_gols"],
-            div[class*="st-key-result_"][class*="_gols"] {
+            div[class*="st-key-result_"][class*="_gols"],
+            div[class*="st-key-result_"][class*="_scorer_goals"] {
                 min-height: 2.85rem;
             }
 
@@ -1466,10 +1487,7 @@ def is_group_complete(participant: dict[str, Any]) -> bool:
     group_games = load_jogos().query("Fase == 'Grupo'")
     for _, game in group_games.iterrows():
         guess = guesses.get(game["Id"], {})
-        has_score = is_filled(guess.get("gols1")) and is_filled(guess.get("gols2"))
-        has_result = guess.get("resultado") in VALID_RESULTS
-        has_player = (not is_brazil_game(game)) or is_filled(guess.get("jogador"))
-        if not (has_score and has_result and has_player):
+        if not guess_has_complete_score(guess):
             return False
     return True
 
@@ -1566,12 +1584,24 @@ def score_value(value: Any) -> int | None:
 
 
 def parse_goal(raw: Any) -> tuple[int | None, str | None]:
-    value = "" if raw is None else str(raw).strip()
-    if value == "":
+    if raw is None:
         return None, None
-    if not value.isdigit():
+    if isinstance(raw, str):
+        value = raw.strip()
+        if value == "":
+            return None, None
+        if not value.isdigit():
+            return None, "Use apenas números inteiros de 0 a 99."
+        number = int(value)
+    elif isinstance(raw, bool):
         return None, "Use apenas números inteiros de 0 a 99."
-    number = int(value)
+    elif isinstance(raw, int):
+        number = raw
+    elif isinstance(raw, float) and raw.is_integer():
+        number = int(raw)
+    else:
+        return None, "Use apenas números inteiros de 0 a 99."
+
     if number < 0 or number > 99:
         return None, "Use valores de 0 a 99."
     return number, None
@@ -1592,6 +1622,47 @@ def parse_existing_goal(raw: Any) -> int:
         return int(value) if value else 0
     except ValueError:
         return 0
+
+
+def coerce_goal_state(key: str) -> None:
+    goal, error = parse_goal(st.session_state.get(key))
+    st.session_state[key] = None if error else goal
+
+
+def goal_input(label: str, key: str, max_value: int = 99) -> int | None:
+    coerce_goal_state(key)
+    return st.number_input(
+        label,
+        min_value=0,
+        max_value=max_value,
+        value=None,
+        step=1,
+        format="%d",
+        key=key,
+        placeholder="",
+        label_visibility="collapsed",
+    )
+
+
+def guess_has_complete_score(guess: dict[str, Any]) -> bool:
+    gols1, error1 = parse_goal(guess.get("gols1"))
+    gols2, error2 = parse_goal(guess.get("gols2"))
+    return error1 is None and error2 is None and gols1 is not None and gols2 is not None
+
+
+def session_game_score_state(game_id: str) -> tuple[int | None, int | None, str | None]:
+    gols1, error1 = parse_goal(st.session_state.get(f"group_{game_id}_gols1"))
+    gols2, error2 = parse_goal(st.session_state.get(f"group_{game_id}_gols2"))
+    error = error1 or error2
+    return gols1, gols2, error
+
+
+def session_group_scores_complete(games: pd.DataFrame) -> bool:
+    for _, game in games.iterrows():
+        gols1, gols2, error = session_game_score_state(game["Id"])
+        if error or gols1 is None or gols2 is None:
+            return False
+    return True
 
 
 def brazil_goal_column(game: pd.Series) -> str | None:
@@ -1646,20 +1717,16 @@ def render_match_score_line(game: pd.Series) -> None:
     with cols[1]:
         st.markdown(f'<div class="team-name">{game["Time1"]}</div>', unsafe_allow_html=True)
     with cols[2]:
-        st.text_input(
+        goal_input(
             f"Gols de {game['Time1']}",
             key=f"group_{game['Id']}_gols1",
-            max_chars=2,
-            label_visibility="collapsed",
         )
     with cols[3]:
         st.markdown('<div class="match-versus">x</div>', unsafe_allow_html=True)
     with cols[4]:
-        st.text_input(
+        goal_input(
             f"Gols de {game['Time2']}",
             key=f"group_{game['Id']}_gols2",
-            max_chars=2,
-            label_visibility="collapsed",
         )
     with cols[5]:
         st.markdown(
@@ -1677,20 +1744,16 @@ def render_result_score_line(game: pd.Series) -> None:
     with cols[1]:
         st.markdown(f'<div class="team-name">{game["Time1"]}</div>', unsafe_allow_html=True)
     with cols[2]:
-        st.text_input(
+        goal_input(
             f"Gols de {game['Time1']}",
             key=f"result_{game['Id']}_gols1",
-            max_chars=2,
-            label_visibility="collapsed",
         )
     with cols[3]:
         st.markdown('<div class="match-versus">x</div>', unsafe_allow_html=True)
     with cols[4]:
-        st.text_input(
+        goal_input(
             f"Gols de {game['Time2']}",
             key=f"result_{game['Id']}_gols2",
-            max_chars=2,
-            label_visibility="collapsed",
         )
     with cols[5]:
         st.markdown(
@@ -1715,8 +1778,8 @@ def initialize_result_draft(game: pd.Series, jogadores: pd.DataFrame) -> None:
     if st.session_state.get("result_draft_game") == game_id:
         return
 
-    st.session_state[f"result_{game_id}_gols1"] = game["Gols1"]
-    st.session_state[f"result_{game_id}_gols2"] = game["Gols2"]
+    st.session_state[f"result_{game_id}_gols1"] = score_value(game["Gols1"])
+    st.session_state[f"result_{game_id}_gols2"] = score_value(game["Gols2"])
     st.session_state[f"result_{game_id}_winner"] = (
         game["Time1"]
         if game["Resultado"] == "1"
@@ -2442,12 +2505,8 @@ def initialize_group_draft(participant: dict[str, Any]) -> None:
     for _, game in group_games.iterrows():
         game_id = game["Id"]
         guess = guesses.get(game_id, {})
-        st.session_state[f"group_{game_id}_gols1"] = (
-            "" if guess.get("gols1") is None else str(guess.get("gols1"))
-        )
-        st.session_state[f"group_{game_id}_gols2"] = (
-            "" if guess.get("gols2") is None else str(guess.get("gols2"))
-        )
+        st.session_state[f"group_{game_id}_gols1"] = score_value(guess.get("gols1"))
+        st.session_state[f"group_{game_id}_gols2"] = score_value(guess.get("gols2"))
         st.session_state[f"group_{game_id}_jogador"] = guess.get("jogador") or ""
     st.session_state["group_draft_owner"] = owner
 
@@ -2480,6 +2539,11 @@ def save_group_predictions(participant_name: str) -> tuple[bool, list[str]]:
             errors.append(f"{game_id}: placar de {game['Time1']} inválido. {error1}")
         if error2:
             errors.append(f"{game_id}: placar de {game['Time2']} inválido. {error2}")
+        if not error1 and not error2 and (gols1 is None) != (gols2 is None):
+            errors.append(
+                f"{game_id}: preencha os dois placares de {game['Time1']} x {game['Time2']} "
+                "ou deixe ambos em branco."
+            )
 
         player = st.session_state.get(f"group_{game_id}_jogador") or None
         if not is_brazil_game(game):
@@ -2626,33 +2690,37 @@ def render_groups() -> None:
 
         for group in sorted(group_games["Id"].str[0].unique()):
             games_in_group = group_games[group_games["Id"].str.startswith(group)]
-            with st.expander(f"Grupo {group}", expanded=False):
-                for _, game in games_in_group.iterrows():
-                    with st.container(border=True):
-                        st.markdown(
-                            f"""
-                            <div class="match-meta">
-                                {format_datetime(game['Data'])}
-                            </div>
-                            """,
-                            unsafe_allow_html=True,
-                        )
-                        render_match_score_line(game)
+            group_complete = session_group_scores_complete(games_in_group)
+            group_status = "complete" if group_complete else "pending"
+            group_label = f"Grupo {group} · Preenchida" if group_complete else f"Grupo {group}"
+            with st.container(key=f"group_expander_{group}_{group_status}"):
+                with st.expander(group_label, expanded=False):
+                    for _, game in games_in_group.iterrows():
+                        with st.container(border=True):
+                            st.markdown(
+                                f"""
+                                <div class="match-meta">
+                                    {format_datetime(game['Data'])}
+                                </div>
+                                """,
+                                unsafe_allow_html=True,
+                            )
+                            render_match_score_line(game)
 
-                        if is_brazil_game(game):
-                            current_player = st.session_state.get(f"group_{game['Id']}_jogador", "")
-                            index = (
-                                player_options.index(current_player)
-                                if current_player in player_options
-                                else 0
-                            )
-                            st.selectbox(
-                                "Nome do Brasileiro que fará gol",
-                                player_options,
-                                index=index,
-                                key=f"group_{game['Id']}_jogador",
-                                placeholder="Selecione um jogador",
-                            )
+                            if is_brazil_game(game):
+                                current_player = st.session_state.get(f"group_{game['Id']}_jogador", "")
+                                index = (
+                                    player_options.index(current_player)
+                                    if current_player in player_options
+                                    else 0
+                                )
+                                st.selectbox(
+                                    "Nome do Brasileiro que fará gol",
+                                    player_options,
+                                    index=index,
+                                    key=f"group_{game['Id']}_jogador",
+                                    placeholder="Selecione um jogador",
+                                )
 
 
 def render_resultados_admin() -> None:
@@ -2760,7 +2828,7 @@ def render_resultados_admin() -> None:
                 cols[1].number_input(
                     "Gols",
                     min_value=0,
-                    max_value=9,
+                    max_value=99,
                     step=1,
                     key=f"result_{game_id}_scorer_goals_{index}",
                 )
