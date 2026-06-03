@@ -235,8 +235,16 @@ def apply_styles(show_sidebar: bool) -> None:
         }
 
         .st-key-login_dashboard button {
-            background: #fff7df;
-            color: #8a6a19;
+            background: linear-gradient(135deg, #1f7a4d 0%, #17653f 100%);
+            border-color: #1f7a4d;
+            color: #ffffff;
+            box-shadow: 0 12px 26px rgba(31, 122, 77, 0.22);
+        }
+
+        .st-key-login_dashboard button:hover:enabled {
+            background: linear-gradient(135deg, #17653f 0%, #125034 100%);
+            border-color: #17653f;
+            color: #ffffff;
         }
 
         .st-key-login_dashboard button:disabled {
@@ -352,8 +360,16 @@ def apply_styles(show_sidebar: bool) -> None:
         }
 
         .st-key-principal_dashboard button {
-            background: #fff7df;
-            color: #8a6a19;
+            background: linear-gradient(135deg, #1f7a4d 0%, #17653f 100%);
+            border-color: #1f7a4d;
+            color: #ffffff;
+            box-shadow: 0 12px 26px rgba(31, 122, 77, 0.22);
+        }
+
+        .st-key-principal_dashboard button:hover:enabled {
+            background: linear-gradient(135deg, #17653f 0%, #125034 100%);
+            border-color: #17653f;
+            color: #ffffff;
         }
 
         .st-key-principal_dashboard button:disabled {
@@ -572,6 +588,20 @@ def apply_styles(show_sidebar: bool) -> None:
             margin: 0;
         }
 
+        .dashboard-heading {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .dashboard-heading img {
+            width: clamp(4.6rem, 8vw, 6.3rem);
+            height: clamp(4.6rem, 8vw, 6.3rem);
+            object-fit: contain;
+            flex: 0 0 auto;
+            filter: drop-shadow(0 10px 14px rgba(41, 28, 9, 0.14));
+        }
+
         .dashboard-subtitle {
             color: #5c4a23;
             font-size: 1.02rem;
@@ -591,6 +621,21 @@ def apply_styles(show_sidebar: bool) -> None:
             background: #fffdf7;
             box-shadow: 0 10px 24px rgba(41, 28, 9, 0.06);
             padding: 1rem;
+        }
+
+        .ranking-summary {
+            border: 1px solid #efe2bf;
+            border-radius: 12px;
+            background: #fff7df;
+            padding: 0.85rem 0.9rem;
+            margin-bottom: 0.7rem;
+            color: #0d1320;
+            font-weight: 760;
+            line-height: 1.55;
+        }
+
+        .ranking-summary strong {
+            font-weight: 900;
         }
 
         .rank-row {
@@ -962,6 +1007,15 @@ def apply_styles(show_sidebar: bool) -> None:
 
             .ranking-card {
                 padding: 0.85rem;
+            }
+
+            .dashboard-heading {
+                gap: 0.72rem;
+            }
+
+            .dashboard-heading img {
+                width: 4.1rem;
+                height: 4.1rem;
             }
 
             .dashboard-game-card {
@@ -1674,6 +1728,23 @@ def render_dashboard_ranking(participants: list[dict[str, Any]]) -> None:
         st.info("Nenhum participante cadastrado ainda.")
         return
 
+    participant_count = len(ranked)
+    total_prize = 50 * participant_count
+    podium = [
+        escape(str(ranked[index].get("nome", ""))) if index < participant_count else "-"
+        for index in range(3)
+    ]
+    summary_html = f"""
+        <div class="ranking-summary">
+            <div>👥 Participantes: <strong>{participant_count}</strong></div>
+            <div>💰 Total acumulado: <strong>R$ {total_prize},00</strong></div>
+            <br>
+            <div>🥇 {podium[0]}</div>
+            <div>🥈 {podium[1]}</div>
+            <div>🥉 {podium[2]}</div>
+        </div>
+    """
+
     max_points = max(participant_points(participant) for participant in ranked)
     rows = []
     for position, participant in enumerate(ranked, start=1):
@@ -1696,7 +1767,7 @@ def render_dashboard_ranking(participants: list[dict[str, Any]]) -> None:
         )
 
     st.markdown(
-        f'<div class="ranking-card">{"".join(rows)}</div>',
+        f'<div class="ranking-card">{summary_html}{"".join(rows)}</div>',
         unsafe_allow_html=True,
     )
 
@@ -1838,7 +1909,7 @@ def render_dashboard_results(
     selecoes: pd.DataFrame,
     participants: list[dict[str, Any]],
 ) -> None:
-    st.markdown('<div class="dashboard-section-title">Jogos</div>', unsafe_allow_html=True)
+    st.markdown('<div class="dashboard-section-title">Resultados dos Jogos</div>', unsafe_allow_html=True)
     flags_by_team = {
         str(row["Nome"]): str(row["Bandeira"])
         for _, row in selecoes.iterrows()
@@ -1859,7 +1930,7 @@ def render_dashboard_results(
 
                     open_ids = set(st.session_state.get("dashboard_open_guesses", []))
                     is_open = game_id in open_ids
-                    label = "Ocultar palpites" if is_open else "Palpites"
+                    label = "Ocultar os palpites" if is_open else "Mostrar os palpites"
                     if st.button(
                         label,
                         key=f"dashboard_palpites_{game_id}",
@@ -1878,11 +1949,20 @@ def render_dashboard() -> None:
     participantes = data.get("participantes", [])
     jogos = load_jogos()
     selecoes = load_selecoes()
+    neymar_src = image_data_uri(FLAGS_DIR / "neymar.png")
+    neymar_html = (
+        f'<img src="{escape(neymar_src, quote=True)}" alt="Neymar">'
+        if neymar_src
+        else ""
+    )
 
     with st.container(key="dashboard_shell"):
         top_cols = st.columns([0.78, 0.22])
         with top_cols[0]:
-            st.markdown('<div class="dashboard-title">Jogos e Ranking</div>', unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="dashboard-heading">{neymar_html}<div class="dashboard-title">Jogos e Ranking</div></div>',
+                unsafe_allow_html=True,
+            )
             st.markdown(
                 '<div class="dashboard-subtitle">Acompanhe a classificação e abra cada jogo para ver os palpites.</div>',
                 unsafe_allow_html=True,
