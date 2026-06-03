@@ -1156,9 +1156,15 @@ def apply_styles(show_sidebar: bool) -> None:
                 display: block;
             }
 
+            .palpite-name,
+            .palpite-score {
+                display: block;
+            }
+
             .palpite-score {
                 text-align: left;
-                margin-top: 0.15rem;
+                margin-top: 0.35rem;
+                line-height: 1.35;
             }
         }
         </style>
