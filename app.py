@@ -1011,7 +1011,6 @@ def is_mobile_client() -> bool:
 def go_to(page: str) -> None:
     st.session_state["page"] = page
     st.session_state["confirm_group_back"] = False
-    st.session_state["group_save_dialog_open"] = False
     rerun()
 
 
@@ -1019,7 +1018,6 @@ def login_as(name: str, show_mobile_rules: bool = False) -> None:
     st.session_state["participant_name"] = name
     st.session_state["page"] = "principal"
     st.session_state["group_draft_owner"] = None
-    st.session_state["group_save_dialog_open"] = False
     st.session_state["mobile_rules_pending"] = show_mobile_rules
     rerun()
 
@@ -1418,11 +1416,6 @@ def render_save_errors(errors: list[str]) -> None:
         st.caption(f"E mais {len(errors) - 8} erro(s).")
 
 
-def request_group_save_dialog() -> None:
-    st.session_state["confirm_group_back"] = False
-    st.session_state["group_save_dialog_open"] = True
-
-
 def confirm_save_dialog(participant_name: str) -> None:
     dialog = getattr(st, "dialog", None) or getattr(st, "experimental_dialog", None)
 
@@ -1436,12 +1429,10 @@ def confirm_save_dialog(participant_name: str) -> None:
             if ok:
                 st.session_state["group_draft_owner"] = None
                 st.session_state["confirm_group_back"] = False
-                st.session_state["group_save_dialog_open"] = False
                 st.session_state["page"] = "principal"
                 rerun()
             render_save_errors(errors)
         if no.button("Não", use_container_width=True):
-            st.session_state["group_save_dialog_open"] = False
             rerun()
 
     if dialog is not None:
@@ -1456,12 +1447,10 @@ def confirm_save_dialog(participant_name: str) -> None:
             if ok:
                 st.session_state["group_draft_owner"] = None
                 st.session_state["confirm_group_back"] = False
-                st.session_state["group_save_dialog_open"] = False
                 st.session_state["page"] = "principal"
                 rerun()
             render_save_errors(errors)
         if no.button("Não", use_container_width=True):
-            st.session_state["group_save_dialog_open"] = False
             rerun()
 
 
@@ -1483,67 +1472,55 @@ def render_groups() -> None:
     player_options = [""] + jogadores
     group_games = load_jogos().query("Fase == 'Grupo'").copy()
 
-    with st.form("group_predictions_form", clear_on_submit=False, enter_to_submit=False, border=False):
-        with st.container(key="group_actions_bar"):
-            actions = st.columns(2)
-            actions[0].form_submit_button(
-                "Salvar",
-                type="primary",
-                use_container_width=True,
-                on_click=request_group_save_dialog,
-            )
-            back_clicked = actions[1].form_submit_button(
-                "Voltar",
-                use_container_width=True,
-            )
+    with st.container(key="group_actions_bar"):
+        actions = st.columns(2)
+        if actions[0].button("Salvar", type="primary", use_container_width=True):
+            st.session_state["confirm_group_back"] = False
+            confirm_save_dialog(participant["nome"])
 
-        with st.container(key="groups_shell"):
-            st.markdown('<div class="groups-title">Fase de Grupos</div>', unsafe_allow_html=True)
-            st.markdown(
-                f'<div class="groups-participant">Participante: <strong>{participant["nome"]}</strong></div>',
-                unsafe_allow_html=True,
-            )
-            st.markdown('<div class="groups-list-start"></div>', unsafe_allow_html=True)
-
-            for group in sorted(group_games["Id"].str[0].unique()):
-                games_in_group = group_games[group_games["Id"].str.startswith(group)]
-                with st.expander(f"Grupo {group}", expanded=False):
-                    for _, game in games_in_group.iterrows():
-                        with st.container(border=True):
-                            st.markdown(
-                                f"""
-                                <div class="match-meta">
-                                    {format_datetime(game['Data'])}
-                                </div>
-                                """,
-                                unsafe_allow_html=True,
-                            )
-                            render_match_score_line(game)
-
-                            if is_brazil_game(game):
-                                current_player = st.session_state.get(f"group_{game['Id']}_jogador", "")
-                                index = (
-                                    player_options.index(current_player)
-                                    if current_player in player_options
-                                    else 0
-                                )
-                                st.selectbox(
-                                    "Nome do Brasileiro que fará gol",
-                                    player_options,
-                                    index=index,
-                                    key=f"group_{game['Id']}_jogador",
-                                    placeholder="Selecione um jogador",
-                                )
-
-    if back_clicked:
-        st.session_state["group_save_dialog_open"] = False
-        st.session_state["confirm_group_back"] = True
-
-    if st.session_state.get("group_save_dialog_open"):
-        confirm_save_dialog(participant["nome"])
+        if actions[1].button("Voltar", use_container_width=True):
+            st.session_state["confirm_group_back"] = True
 
     if st.session_state.get("confirm_group_back"):
         confirm_back_dialog()
+
+    with st.container(key="groups_shell"):
+        st.markdown('<div class="groups-title">Fase de Grupos</div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="groups-participant">Participante: <strong>{participant["nome"]}</strong></div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown('<div class="groups-list-start"></div>', unsafe_allow_html=True)
+
+        for group in sorted(group_games["Id"].str[0].unique()):
+            games_in_group = group_games[group_games["Id"].str.startswith(group)]
+            with st.expander(f"Grupo {group}", expanded=False):
+                for _, game in games_in_group.iterrows():
+                    with st.container(border=True):
+                        st.markdown(
+                            f"""
+                            <div class="match-meta">
+                                {format_datetime(game['Data'])}
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
+                        )
+                        render_match_score_line(game)
+
+                        if is_brazil_game(game):
+                            current_player = st.session_state.get(f"group_{game['Id']}_jogador", "")
+                            index = (
+                                player_options.index(current_player)
+                                if current_player in player_options
+                                else 0
+                            )
+                            st.selectbox(
+                                "Nome do Brasileiro que fará gol",
+                                player_options,
+                                index=index,
+                                key=f"group_{game['Id']}_jogador",
+                                placeholder="Selecione um jogador",
+                            )
 
 
 def render_blank_page(title: str) -> None:
@@ -1558,7 +1535,6 @@ def main() -> None:
     st.session_state.setdefault("page", "login")
     st.session_state.setdefault("participant_name", None)
     st.session_state.setdefault("confirm_group_back", False)
-    st.session_state.setdefault("group_save_dialog_open", False)
     st.session_state.setdefault("mobile_rules_pending", False)
 
     page = st.session_state["page"]
