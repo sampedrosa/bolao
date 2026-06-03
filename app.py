@@ -576,8 +576,8 @@ def apply_styles(show_sidebar: bool) -> None:
         }
 
         .st-key-dashboard_shell {
-            max-width: 1120px;
-            margin: 1.45rem auto 0 auto;
+            max-width: 1180px;
+            margin: 1.35rem auto 0 auto;
         }
 
         .dashboard-title {
@@ -595,8 +595,8 @@ def apply_styles(show_sidebar: bool) -> None:
         }
 
         .dashboard-heading img {
-            width: clamp(4.6rem, 8vw, 6.3rem);
-            height: clamp(4.6rem, 8vw, 6.3rem);
+            width: clamp(5.3rem, 9vw, 7.4rem);
+            height: clamp(5.3rem, 9vw, 7.4rem);
             object-fit: contain;
             flex: 0 0 auto;
             filter: drop-shadow(0 10px 14px rgba(41, 28, 9, 0.14));
@@ -615,6 +615,46 @@ def apply_styles(show_sidebar: bool) -> None:
             margin-bottom: 0.85rem;
         }
 
+        .st-key-mobile_ranking {
+            display: none;
+        }
+
+        .st-key-desktop_ranking {
+            position: sticky;
+            top: 1.25rem;
+            width: 318px;
+            max-width: 318px;
+        }
+
+        .st-key-dashboard_body > div[data-testid="stLayoutWrapper"] > div[data-testid="stHorizontalBlock"] {
+            align-items: flex-start;
+            gap: 1.15rem;
+        }
+
+        .st-key-dashboard_body > div[data-testid="stLayoutWrapper"] > div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:first-child {
+            flex: 0 0 318px !important;
+            width: 318px !important;
+            max-width: 318px !important;
+            min-width: 318px !important;
+        }
+
+        .st-key-dashboard_body div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:first-child {
+            flex: 0 0 318px !important;
+            width: 318px !important;
+            max-width: 318px !important;
+            min-width: 318px !important;
+        }
+
+        .st-key-dashboard_body > div[data-testid="stLayoutWrapper"] > div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:last-child {
+            min-width: 0 !important;
+            flex: 1 1 auto !important;
+        }
+
+        .st-key-dashboard_body div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:last-child {
+            min-width: 0 !important;
+            flex: 1 1 auto !important;
+        }
+
         .ranking-card {
             border: 1px solid #d1b064;
             border-radius: 14px;
@@ -627,50 +667,66 @@ def apply_styles(show_sidebar: bool) -> None:
             border: 1px solid #efe2bf;
             border-radius: 12px;
             background: #fff7df;
-            padding: 0.85rem 0.9rem;
-            margin-bottom: 0.7rem;
+            padding: 0.78rem 0.85rem;
+            margin-bottom: 0.9rem;
             color: #0d1320;
             font-weight: 760;
-            line-height: 1.55;
+            line-height: 1.45;
         }
 
         .ranking-summary strong {
             font-weight: 900;
         }
 
-        .rank-row {
-            padding: 0.62rem 0;
-            border-bottom: 1px solid #efe2bf;
+        .rank-list {
+            display: grid;
+            gap: 0.68rem;
         }
 
-        .rank-row:last-child {
-            border-bottom: 0;
-            padding-bottom: 0;
+        .rank-row {
+            min-width: 0;
         }
 
         .rank-top {
             display: flex;
             align-items: baseline;
             justify-content: space-between;
-            gap: 0.75rem;
-            color: #0d1320;
-            font-weight: 800;
-            font-size: 0.98rem;
+            gap: 0.65rem;
+            margin-bottom: 0.34rem;
         }
 
         .rank-name {
+            color: #0d1320;
+            font-size: 0.9rem;
+            font-weight: 850;
+            line-height: 1.15;
             overflow-wrap: anywhere;
         }
 
         .rank-points {
             color: #8a6a19;
+            font-size: 0.78rem;
+            font-weight: 850;
             white-space: nowrap;
-            font-size: 0.9rem;
+        }
+
+        .rank-position {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 1.6rem;
+            min-height: 1.25rem;
+            padding: 0 0.28rem;
+            margin-right: 0.35rem;
+            border-radius: 999px;
+            background: #f0eadc;
+            color: #6f5f3d;
+            font-size: 0.72rem;
+            font-weight: 900;
         }
 
         .rank-track {
-            height: 0.62rem;
-            margin-top: 0.42rem;
+            height: 0.72rem;
             border-radius: 999px;
             background: #f0eadc;
             overflow: hidden;
@@ -678,8 +734,10 @@ def apply_styles(show_sidebar: bool) -> None:
 
         .rank-bar {
             height: 100%;
+            min-width: 0.45rem;
             border-radius: 999px;
-            background: linear-gradient(90deg, #1f7a4d, #d1b064);
+            background: linear-gradient(90deg, #1f7a4d 0%, #d1b064 100%);
+            box-shadow: 0 7px 14px rgba(31, 122, 77, 0.16);
         }
 
         .st-key-dashboard_results div[data-testid="stExpander"] {
@@ -995,16 +1053,6 @@ def apply_styles(show_sidebar: bool) -> None:
                 margin-top: 0.85rem;
             }
 
-            .st-key-dashboard_shell [data-testid="stHorizontalBlock"] {
-                flex-direction: column !important;
-                gap: 1rem !important;
-            }
-
-            .st-key-dashboard_shell [data-testid="stColumn"] {
-                width: 100% !important;
-                flex: 1 1 100% !important;
-            }
-
             .ranking-card {
                 padding: 0.85rem;
             }
@@ -1014,8 +1062,57 @@ def apply_styles(show_sidebar: bool) -> None:
             }
 
             .dashboard-heading img {
-                width: 4.1rem;
-                height: 4.1rem;
+                width: 4.8rem;
+                height: 4.8rem;
+            }
+
+            .st-key-mobile_ranking {
+                display: block;
+                margin-bottom: 1rem;
+            }
+
+            .st-key-dashboard_body [data-testid="stHorizontalBlock"] {
+                flex-direction: column !important;
+                gap: 0 !important;
+            }
+
+            .st-key-dashboard_body [data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:first-child {
+                display: none !important;
+            }
+
+            .st-key-dashboard_body [data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:last-child {
+                width: 100% !important;
+                max-width: 100% !important;
+                min-width: 0 !important;
+                flex: 1 1 100% !important;
+            }
+
+            .st-key-mobile_ranking div[data-testid="stExpander"] {
+                border: 1px solid #d1b064;
+                border-radius: 12px;
+                background: #fffdf7;
+                box-shadow: 0 8px 20px rgba(41, 28, 9, 0.05);
+                overflow: hidden;
+            }
+
+            .st-key-mobile_ranking div[data-testid="stExpander"] details summary {
+                min-height: 3.45rem;
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+
+            .st-key-mobile_ranking div[data-testid="stExpander"] details summary p {
+                color: #0d1320 !important;
+                font-size: 1.14rem !important;
+                font-weight: 850 !important;
+            }
+
+            .rank-list {
+                gap: 0.62rem;
+            }
+
+            .rank-name {
+                font-size: 0.86rem;
             }
 
             .dashboard-game-card {
@@ -1720,8 +1817,12 @@ def ranked_participants(participants: list[dict[str, Any]]) -> list[dict[str, An
     )
 
 
-def render_dashboard_ranking(participants: list[dict[str, Any]]) -> None:
-    st.markdown('<div class="dashboard-section-title">Ranking</div>', unsafe_allow_html=True)
+def render_dashboard_ranking(
+    participants: list[dict[str, Any]],
+    show_title: bool = True,
+) -> None:
+    if show_title:
+        st.markdown('<div class="dashboard-section-title">Ranking</div>', unsafe_allow_html=True)
 
     ranked = ranked_participants(participants)
     if not ranked:
@@ -1730,18 +1831,10 @@ def render_dashboard_ranking(participants: list[dict[str, Any]]) -> None:
 
     participant_count = len(ranked)
     total_prize = 50 * participant_count
-    podium = [
-        escape(str(ranked[index].get("nome", ""))) if index < participant_count else "-"
-        for index in range(3)
-    ]
     summary_html = f"""
         <div class="ranking-summary">
             <div>👥 Participantes: <strong>{participant_count}</strong></div>
             <div>💰 Total acumulado: <strong>R$ {total_prize},00</strong></div>
-            <br>
-            <div>🥇 {podium[0]}</div>
-            <div>🥈 {podium[1]}</div>
-            <div>🥉 {podium[2]}</div>
         </div>
     """
 
@@ -1750,13 +1843,15 @@ def render_dashboard_ranking(participants: list[dict[str, Any]]) -> None:
     for position, participant in enumerate(ranked, start=1):
         name = escape(str(participant.get("nome", "")))
         points = participant_points(participant)
-        width = (points / max_points * 100) if max_points > 0 else 0
+        width = (points / max_points * 100) if max_points > 0 else 4
+        if max_points > 0 and points == 0:
+            width = 2.5
         suffix = "ponto" if points == 1 else "pontos"
         rows.append(
             f"""
-            <div class="rank-row">
+            <div class="rank-row" title="{position}. {name}: {points} {suffix}">
                 <div class="rank-top">
-                    <span class="rank-name">{position}. {name}</span>
+                    <span class="rank-name"><span class="rank-position">{position}º</span>{name}</span>
                     <span class="rank-points">{points} {suffix}</span>
                 </div>
                 <div class="rank-track">
@@ -1767,7 +1862,7 @@ def render_dashboard_ranking(participants: list[dict[str, Any]]) -> None:
         )
 
     st.markdown(
-        f'<div class="ranking-card">{summary_html}{"".join(rows)}</div>',
+        f'<div class="ranking-card">{summary_html}<div class="rank-list">{"".join(rows)}</div></div>',
         unsafe_allow_html=True,
     )
 
@@ -1974,11 +2069,17 @@ def render_dashboard() -> None:
                 else:
                     go_to("login")
 
-        left, right = st.columns([0.34, 0.66], gap="large")
-        with left:
-            render_dashboard_ranking(participantes)
-        with right:
-            render_dashboard_results(jogos, selecoes, participantes)
+        with st.container(key="mobile_ranking"):
+            with st.expander("Ranking", expanded=True):
+                render_dashboard_ranking(participantes, show_title=False)
+
+        with st.container(key="dashboard_body"):
+            left, right = st.columns([0.3, 0.7], gap="large")
+            with left:
+                with st.container(key="desktop_ranking"):
+                    render_dashboard_ranking(participantes)
+            with right:
+                render_dashboard_results(jogos, selecoes, participantes)
 
 
 def register_dialog(data: dict[str, Any], names: list[str]) -> None:
