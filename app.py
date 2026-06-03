@@ -1974,6 +1974,42 @@ def ranked_participants(participants: list[dict[str, Any]]) -> list[dict[str, An
     )
 
 
+def ranking_card_html(ranked: list[dict[str, Any]]) -> str:
+    participant_count = len(ranked)
+    total_prize = 50 * participant_count
+    summary_html = (
+        '<div class="ranking-summary">'
+        f"<div>&#128101; Participantes: <strong>{participant_count}</strong></div>"
+        f"<div>&#128176; Total acumulado: <strong>R$ {total_prize},00</strong></div>"
+        "</div>"
+    )
+
+    max_points = max(participant_points(participant) for participant in ranked)
+    rows = []
+    for position, participant in enumerate(ranked, start=1):
+        raw_name = str(participant.get("nome", ""))
+        name = escape(raw_name)
+        points = participant_points(participant)
+        width = (points / max_points * 100) if max_points > 0 else 4
+        if max_points > 0 and points == 0:
+            width = 2.5
+        suffix = "ponto" if points == 1 else "pontos"
+        title = escape(f"{position}. {raw_name}: {points} {suffix}", quote=True)
+        rows.append(
+            '<div class="rank-row" title="'
+            + title
+            + '"><div class="rank-top"><span class="rank-name">'
+            + f'<span class="rank-position">{position}&ordm;</span>'
+            + name
+            + '</span><span class="rank-points">'
+            + f"{points} {suffix}"
+            + '</span></div><div class="rank-track"><div class="rank-bar" '
+            + f'style="width: {width:.1f}%;"></div></div></div>'
+        )
+
+    return f'<div class="ranking-card">{summary_html}<div class="rank-list">{"".join(rows)}</div></div>'
+
+
 def render_dashboard_ranking(
     participants: list[dict[str, Any]],
     show_title: bool = True,
@@ -1986,42 +2022,7 @@ def render_dashboard_ranking(
         st.info("Nenhum participante cadastrado ainda.")
         return
 
-    participant_count = len(ranked)
-    total_prize = 50 * participant_count
-    summary_html = f"""
-        <div class="ranking-summary">
-            <div>👥 Participantes: <strong>{participant_count}</strong></div>
-            <div>💰 Total acumulado: <strong>R$ {total_prize},00</strong></div>
-        </div>
-    """
-
-    max_points = max(participant_points(participant) for participant in ranked)
-    rows = []
-    for position, participant in enumerate(ranked, start=1):
-        name = escape(str(participant.get("nome", "")))
-        points = participant_points(participant)
-        width = (points / max_points * 100) if max_points > 0 else 4
-        if max_points > 0 and points == 0:
-            width = 2.5
-        suffix = "ponto" if points == 1 else "pontos"
-        rows.append(
-            f"""
-            <div class="rank-row" title="{position}. {name}: {points} {suffix}">
-                <div class="rank-top">
-                    <span class="rank-name"><span class="rank-position">{position}º</span>{name}</span>
-                    <span class="rank-points">{points} {suffix}</span>
-                </div>
-                <div class="rank-track">
-                    <div class="rank-bar" style="width: {width:.1f}%;"></div>
-                </div>
-            </div>
-            """
-        )
-
-    st.markdown(
-        f'<div class="ranking-card">{summary_html}<div class="rank-list">{"".join(rows)}</div></div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown(ranking_card_html(ranked), unsafe_allow_html=True)
 
 
 def dashboard_team_name(raw_name: Any) -> str:

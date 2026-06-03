@@ -17,6 +17,8 @@ O participante deverá ficar atento as datas para preencher.
 
 O total de pontos do participante é a somatória em todas as etapas, podendo ser visualizada no Ranking.
 
+Em caso de possível empate, o critério será quem acertar mais na final.
+
 ### 🅰️ Fase de Grupos
 Preencher apenas placares dos 72 jogos da Fase de Grupo.
 - Acertar exatamente o placar: **+3** pontos.
