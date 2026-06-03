@@ -6,6 +6,7 @@ import os
 import re
 import unicodedata
 from datetime import datetime
+from html import escape
 from io import BytesIO
 from pathlib import Path
 from typing import Any
@@ -33,6 +34,16 @@ ELIMINATORIAS_START = datetime(2026, 6, 24, 1, 0, tzinfo=TZ)
 ELIMINATORIAS_END = datetime(2026, 7, 18, 18, 0, tzinfo=TZ)
 
 VALID_RESULTS = {"1", "2", "E"}
+
+DASHBOARD_PHASES = [
+    ("Grupo", "Fase de Grupos"),
+    ("Dezesseisavos", "Dezesseisavos"),
+    ("Oitavas", "Oitavas"),
+    ("Quartas", "Quartas"),
+    ("Semifinal", "Semifinais"),
+    ("Terceiro", "Terceiro Lugar"),
+    ("Final", "Final"),
+]
 
 
 st.set_page_config(
@@ -96,7 +107,7 @@ def apply_styles(show_sidebar: bool) -> None:
         }
 
         .main .block-container {
-            max-width: 920px;
+            max-width: 1180px;
             padding-top: 1.1rem;
             padding-bottom: 3rem;
         }
@@ -548,6 +559,242 @@ def apply_styles(show_sidebar: bool) -> None:
             padding-bottom: 0.75rem !important;
         }
 
+        .st-key-dashboard_shell {
+            max-width: 1120px;
+            margin: 1.45rem auto 0 auto;
+        }
+
+        .dashboard-title {
+            color: #0d1320;
+            font-size: clamp(2.2rem, 5vw, 3.05rem);
+            line-height: 1.05;
+            font-weight: 850;
+            margin: 0;
+        }
+
+        .dashboard-subtitle {
+            color: #5c4a23;
+            font-size: 1.02rem;
+            margin: 0.85rem 0 1.45rem 0;
+        }
+
+        .dashboard-section-title {
+            color: #0d1320;
+            font-size: 1.28rem;
+            font-weight: 850;
+            margin-bottom: 0.85rem;
+        }
+
+        .ranking-card {
+            border: 1px solid #d1b064;
+            border-radius: 14px;
+            background: #fffdf7;
+            box-shadow: 0 10px 24px rgba(41, 28, 9, 0.06);
+            padding: 1rem;
+        }
+
+        .rank-row {
+            padding: 0.62rem 0;
+            border-bottom: 1px solid #efe2bf;
+        }
+
+        .rank-row:last-child {
+            border-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .rank-top {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 0.75rem;
+            color: #0d1320;
+            font-weight: 800;
+            font-size: 0.98rem;
+        }
+
+        .rank-name {
+            overflow-wrap: anywhere;
+        }
+
+        .rank-points {
+            color: #8a6a19;
+            white-space: nowrap;
+            font-size: 0.9rem;
+        }
+
+        .rank-track {
+            height: 0.62rem;
+            margin-top: 0.42rem;
+            border-radius: 999px;
+            background: #f0eadc;
+            overflow: hidden;
+        }
+
+        .rank-bar {
+            height: 100%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, #1f7a4d, #d1b064);
+        }
+
+        .st-key-dashboard_results div[data-testid="stExpander"] {
+            border: 1px solid #d1b064;
+            border-radius: 12px;
+            background: #fffdf7;
+            box-shadow: 0 8px 20px rgba(41, 28, 9, 0.05);
+            margin-bottom: 0.85rem;
+            overflow: hidden;
+        }
+
+        .st-key-dashboard_results div[data-testid="stExpander"] details summary {
+            min-height: 3.55rem;
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+
+        .st-key-dashboard_results div[data-testid="stExpander"] details summary p {
+            color: #0d1320 !important;
+            font-size: 1.2rem !important;
+            font-weight: 850 !important;
+        }
+
+        .dashboard-game-card {
+            border: 1px solid #d8ccb1;
+            border-radius: 12px;
+            background: #fffdf7;
+            box-shadow: 0 8px 18px rgba(41, 28, 9, 0.04);
+            padding: 0.9rem 0.95rem;
+            margin: 0.75rem 0 0.35rem 0;
+        }
+
+        .dashboard-game-meta {
+            color: #8a6a19;
+            font-size: 0.9rem;
+            font-weight: 750;
+            margin-bottom: 0.78rem;
+        }
+
+        .dashboard-match-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+            align-items: center;
+            gap: 0.7rem;
+        }
+
+        .dashboard-team {
+            display: flex;
+            align-items: center;
+            gap: 0.55rem;
+            min-width: 0;
+        }
+
+        .dashboard-team.right {
+            justify-content: flex-end;
+            text-align: right;
+        }
+
+        .dashboard-team-name {
+            color: #0d1320;
+            font-weight: 850;
+            line-height: 1.15;
+            overflow-wrap: anywhere;
+        }
+
+        .dashboard-flag {
+            width: 2.15rem;
+            height: 1.55rem;
+            object-fit: contain;
+            flex: 0 0 auto;
+        }
+
+        .dashboard-score {
+            display: grid;
+            grid-template-columns: minmax(1.8rem, auto) auto minmax(1.8rem, auto);
+            align-items: center;
+            gap: 0.38rem;
+            color: #8a6a19;
+            font-size: 1.12rem;
+            font-weight: 850;
+        }
+
+        .dashboard-score-value {
+            min-width: 1.85rem;
+            min-height: 2rem;
+            border: 1px solid #d1b064;
+            border-radius: 9px;
+            background: #ffffff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #0d1320;
+        }
+
+        .dashboard-score-value.empty {
+            border-color: transparent;
+            background: transparent;
+        }
+
+        div[class*="st-key-dashboard_palpites_"] button {
+            min-height: 2.15rem;
+            border-radius: 999px;
+            padding: 0.25rem 0.85rem;
+            border-color: #d1b064;
+            background: #fff7df;
+            color: #8a6a19;
+            font-weight: 800;
+            font-size: 0.88rem;
+        }
+
+        div[class*="st-key-dashboard_palpites_"] button:hover:enabled {
+            border-color: #1f7a4d;
+            color: #17653f;
+            background: #ffffff;
+        }
+
+        .palpite-list {
+            border-left: 3px solid #d1b064;
+            margin: 0.45rem 0 1.05rem 0.35rem;
+            padding: 0.2rem 0 0.2rem 0.8rem;
+        }
+
+        .palpite-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 0.9rem;
+            padding: 0.48rem 0;
+            border-bottom: 1px solid #efe2bf;
+            color: #0d1320;
+        }
+
+        .palpite-row:last-child {
+            border-bottom: 0;
+        }
+
+        .palpite-name {
+            font-weight: 850;
+            overflow-wrap: anywhere;
+        }
+
+        .palpite-score {
+            color: #5c4a23;
+            text-align: right;
+            overflow-wrap: anywhere;
+        }
+
+        .palpite-row.empty .palpite-score {
+            color: #9a8d74;
+            font-style: italic;
+        }
+
+        .st-key-dashboard_back button {
+            min-height: 2.9rem;
+            border-radius: 10px;
+            border-color: #d1b064;
+            background: #fffdf7;
+            color: #0d1320;
+            font-weight: 850;
+        }
+
         @media (max-width: 640px) {
             .main .block-container {
                 padding-left: 0.85rem;
@@ -697,6 +944,65 @@ def apply_styles(show_sidebar: bool) -> None:
             .match-versus {
                 font-size: 1rem;
                 padding-top: 0;
+            }
+
+            .st-key-dashboard_shell {
+                margin-top: 0.85rem;
+            }
+
+            .st-key-dashboard_shell [data-testid="stHorizontalBlock"] {
+                flex-direction: column !important;
+                gap: 1rem !important;
+            }
+
+            .st-key-dashboard_shell [data-testid="stColumn"] {
+                width: 100% !important;
+                flex: 1 1 100% !important;
+            }
+
+            .ranking-card {
+                padding: 0.85rem;
+            }
+
+            .dashboard-game-card {
+                padding: 0.78rem 0.72rem;
+            }
+
+            .dashboard-match-row {
+                gap: 0.42rem;
+            }
+
+            .dashboard-team {
+                gap: 0.35rem;
+            }
+
+            .dashboard-team-name {
+                font-size: 0.78rem;
+            }
+
+            .dashboard-flag {
+                width: 1.72rem;
+                height: 1.22rem;
+            }
+
+            .dashboard-score {
+                gap: 0.22rem;
+                font-size: 0.98rem;
+            }
+
+            .dashboard-score-value {
+                min-width: 1.45rem;
+                min-height: 1.75rem;
+                border-radius: 8px;
+            }
+
+            .palpite-row {
+                display: block;
+            }
+
+            .palpite-score {
+                text-align: left;
+                margin-top: 0.15rem;
             }
         }
         </style>
@@ -1331,20 +1637,268 @@ def participant_names(data: dict[str, Any]) -> list[str]:
 
 
 def dashboard_available() -> bool:
-    return datetime.now(TZ) >= GROUP_DEADLINE
+    return True
 
 
 def render_dashboard_button(key: str) -> None:
-    available = dashboard_available()
     if st.button(
         "Visualizar Jogos e Ranking",
         key=key,
         use_container_width=True,
-        disabled=not available,
     ):
         go_to("dashboard")
-    if not available:
-        st.caption("Disponível a partir de 11/06/2026 às 16:00.")
+
+
+def participant_points(participant: dict[str, Any]) -> int:
+    try:
+        return int(participant.get("pontos", 0) or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def ranked_participants(participants: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return sorted(
+        participants,
+        key=lambda item: (
+            -participant_points(item),
+            normalize_name(str(item.get("nome", ""))),
+        ),
+    )
+
+
+def render_dashboard_ranking(participants: list[dict[str, Any]]) -> None:
+    st.markdown('<div class="dashboard-section-title">Ranking</div>', unsafe_allow_html=True)
+
+    ranked = ranked_participants(participants)
+    if not ranked:
+        st.info("Nenhum participante cadastrado ainda.")
+        return
+
+    max_points = max(participant_points(participant) for participant in ranked)
+    rows = []
+    for position, participant in enumerate(ranked, start=1):
+        name = escape(str(participant.get("nome", "")))
+        points = participant_points(participant)
+        width = (points / max_points * 100) if max_points > 0 else 0
+        suffix = "ponto" if points == 1 else "pontos"
+        rows.append(
+            f"""
+            <div class="rank-row">
+                <div class="rank-top">
+                    <span class="rank-name">{position}. {name}</span>
+                    <span class="rank-points">{points} {suffix}</span>
+                </div>
+                <div class="rank-track">
+                    <div class="rank-bar" style="width: {width:.1f}%;"></div>
+                </div>
+            </div>
+            """
+        )
+
+    st.markdown(
+        f'<div class="ranking-card">{"".join(rows)}</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def dashboard_team_name(raw_name: Any) -> str:
+    name = "" if raw_name is None else str(raw_name).strip()
+    return name if name else "A definir"
+
+
+def dashboard_flag_src(team_name: str, flags_by_team: dict[str, str]) -> str:
+    path: Path | None = None
+    if team_name != "A definir":
+        filename = flags_by_team.get(team_name, "")
+        if filename:
+            candidate = FLAGS_DIR / filename
+            if candidate.exists():
+                path = candidate
+
+    if path is None:
+        path = FLAGS_DIR / "adefinir.png"
+
+    return image_data_uri(path)
+
+
+def dashboard_flag_html(team_name: str, flags_by_team: dict[str, str]) -> str:
+    src = dashboard_flag_src(team_name, flags_by_team)
+    if not src:
+        return '<span class="dashboard-flag"></span>'
+    return f'<img class="dashboard-flag" src="{escape(src, quote=True)}" alt="{escape(team_name)}">'
+
+
+def format_dashboard_datetime(value: Any) -> str:
+    try:
+        return format_datetime(str(value))
+    except (TypeError, ValueError):
+        return ""
+
+
+def dashboard_has_score(game: pd.Series) -> bool:
+    return is_filled(game.get("Gols1")) and is_filled(game.get("Gols2"))
+
+
+def dashboard_score_value(value: Any, show_score: bool) -> str:
+    css_class = "dashboard-score-value" if show_score else "dashboard-score-value empty"
+    text = escape(str(value)) if show_score else ""
+    return f'<span class="{css_class}">{text}</span>'
+
+
+def render_dashboard_game_card(
+    game: pd.Series,
+    flags_by_team: dict[str, str],
+) -> None:
+    team1 = dashboard_team_name(game.get("Time1"))
+    team2 = dashboard_team_name(game.get("Time2"))
+    show_score = dashboard_has_score(game)
+    date_text = format_dashboard_datetime(game.get("Data"))
+    phase_text = escape(str(game.get("Fase", "")))
+    meta = " · ".join(item for item in [date_text, phase_text] if item)
+
+    st.markdown(
+        f"""
+        <div class="dashboard-game-card">
+            <div class="dashboard-game-meta">{escape(meta)}</div>
+            <div class="dashboard-match-row">
+                <div class="dashboard-team">
+                    {dashboard_flag_html(team1, flags_by_team)}
+                    <span class="dashboard-team-name">{escape(team1)}</span>
+                </div>
+                <div class="dashboard-score">
+                    {dashboard_score_value(game.get("Gols1"), show_score)}
+                    <span>x</span>
+                    {dashboard_score_value(game.get("Gols2"), show_score)}
+                </div>
+                <div class="dashboard-team right">
+                    <span class="dashboard-team-name">{escape(team2)}</span>
+                    {dashboard_flag_html(team2, flags_by_team)}
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def toggle_dashboard_guesses(game_id: str) -> None:
+    open_ids = set(st.session_state.get("dashboard_open_guesses", []))
+    if game_id in open_ids:
+        open_ids.remove(game_id)
+    else:
+        open_ids.add(game_id)
+    st.session_state["dashboard_open_guesses"] = sorted(open_ids)
+
+
+def format_dashboard_guess(
+    participant: dict[str, Any],
+    game: pd.Series,
+) -> tuple[str, bool]:
+    guess = get_guess_map(participant).get(str(game["Id"]), {})
+    if not (is_filled(guess.get("gols1")) and is_filled(guess.get("gols2"))):
+        return "Sem palpite", True
+
+    team1 = dashboard_team_name(game.get("Time1"))
+    team2 = dashboard_team_name(game.get("Time2"))
+    text = f"{team1} {guess.get('gols1')} x {guess.get('gols2')} {team2}"
+    if is_filled(guess.get("jogador")):
+        text += f" · {guess.get('jogador')}"
+    return text, False
+
+
+def render_dashboard_guesses(
+    game: pd.Series,
+    participants: list[dict[str, Any]],
+) -> None:
+    if not participants:
+        st.caption("Nenhum participante cadastrado ainda.")
+        return
+
+    rows = []
+    for participant in ranked_participants(participants):
+        guess_text, is_empty = format_dashboard_guess(participant, game)
+        css_class = "palpite-row empty" if is_empty else "palpite-row"
+        rows.append(
+            f"""
+            <div class="{css_class}">
+                <span class="palpite-name">{escape(str(participant.get("nome", "")))}</span>
+                <span class="palpite-score">{escape(guess_text)}</span>
+            </div>
+            """
+        )
+
+    st.markdown(
+        f'<div class="palpite-list">{"".join(rows)}</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def render_dashboard_results(
+    jogos: pd.DataFrame,
+    selecoes: pd.DataFrame,
+    participants: list[dict[str, Any]],
+) -> None:
+    st.markdown('<div class="dashboard-section-title">Jogos</div>', unsafe_allow_html=True)
+    flags_by_team = {
+        str(row["Nome"]): str(row["Bandeira"])
+        for _, row in selecoes.iterrows()
+        if str(row["Nome"]).strip()
+    }
+
+    with st.container(key="dashboard_results"):
+        for phase, label in DASHBOARD_PHASES:
+            phase_games = jogos.loc[jogos["Fase"] == phase].copy()
+            with st.expander(label, expanded=False):
+                if phase_games.empty:
+                    st.caption("Nenhum jogo cadastrado nesta fase.")
+                    continue
+
+                for _, game in phase_games.iterrows():
+                    game_id = str(game["Id"])
+                    render_dashboard_game_card(game, flags_by_team)
+
+                    open_ids = set(st.session_state.get("dashboard_open_guesses", []))
+                    is_open = game_id in open_ids
+                    label = "Ocultar palpites" if is_open else "Palpites"
+                    if st.button(
+                        label,
+                        key=f"dashboard_palpites_{game_id}",
+                    ):
+                        toggle_dashboard_guesses(game_id)
+                        is_open = game_id in set(
+                            st.session_state.get("dashboard_open_guesses", [])
+                        )
+
+                    if is_open:
+                        render_dashboard_guesses(game, participants)
+
+
+def render_dashboard() -> None:
+    data = load_participantes()
+    participantes = data.get("participantes", [])
+    jogos = load_jogos()
+    selecoes = load_selecoes()
+
+    with st.container(key="dashboard_shell"):
+        top_cols = st.columns([0.78, 0.22])
+        with top_cols[0]:
+            st.markdown('<div class="dashboard-title">Jogos e Ranking</div>', unsafe_allow_html=True)
+            st.markdown(
+                '<div class="dashboard-subtitle">Acompanhe a classificação e abra cada jogo para ver os palpites.</div>',
+                unsafe_allow_html=True,
+            )
+        with top_cols[1]:
+            if st.button("Voltar", key="dashboard_back", use_container_width=True):
+                if st.session_state.get("participant_name"):
+                    go_to("principal")
+                else:
+                    go_to("login")
+
+        left, right = st.columns([0.34, 0.66], gap="large")
+        with left:
+            render_dashboard_ranking(participantes)
+        with right:
+            render_dashboard_results(jogos, selecoes, participantes)
 
 
 def register_dialog(data: dict[str, Any], names: list[str]) -> None:
@@ -1911,7 +2465,7 @@ def main() -> None:
     elif page == "eliminatorias":
         render_blank_page("Eliminatórias")
     elif page == "dashboard":
-        render_blank_page("Jogos e Ranking")
+        render_dashboard()
     elif page == "resultados":
         render_resultados_admin()
     else:
