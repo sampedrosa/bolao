@@ -24,6 +24,7 @@ TZ = ZoneInfo("America/Sao_Paulo")
 JOGOS_COLUMNS = ["Id", "Data", "Fase", "Time1", "Time2", "Gols1", "Gols2", "Resultado"]
 SELECOES_COLUMNS = ["Nome", "Grupo", "Bandeira"]
 JOGADORES_COLUMNS = ["Nome", "Posição", "GC1", "GC4", "GC6", "GD", "GO", "GQ", "GS", "GF"]
+JOGADOR_GOAL_COLUMNS = ["GC1", "GC4", "GC6", "GD", "GO", "GQ", "GS", "GF"]
 
 GROUP_DEADLINE = datetime(2026, 6, 11, 16, 0, tzinfo=TZ)
 FINALISTAS_START = datetime(2026, 6, 24, 1, 0, tzinfo=TZ)
@@ -301,6 +302,7 @@ def apply_styles(show_sidebar: bool) -> None:
         .st-key-action_groups button,
         .st-key-action_finalistas button,
         .st-key-action_eliminatorias button,
+        .st-key-principal_results button,
         .st-key-principal_dashboard button {
             min-height: 4.65rem;
             border-radius: 12px;
@@ -314,14 +316,16 @@ def apply_styles(show_sidebar: bool) -> None:
 
         .st-key-action_groups button,
         .st-key-action_finalistas button,
-        .st-key-action_eliminatorias button {
+        .st-key-action_eliminatorias button,
+        .st-key-principal_results button {
             background: #fffdf7;
             color: #0d1320;
         }
 
         .st-key-action_groups button:hover:enabled,
         .st-key-action_finalistas button:hover:enabled,
-        .st-key-action_eliminatorias button:hover:enabled {
+        .st-key-action_eliminatorias button:hover:enabled,
+        .st-key-principal_results button:hover:enabled {
             border-color: #1f7a4d;
             color: #17653f;
             background: #ffffff;
@@ -468,19 +472,24 @@ def apply_styles(show_sidebar: bool) -> None:
             color: #17653f !important;
         }
 
-        div[class*="st-key-group_"][class*="_gols"] {
+        div[class*="st-key-group_"][class*="_gols"],
+        div[class*="st-key-result_"][class*="_gols"] {
             min-height: 3.15rem;
             overflow: visible !important;
         }
 
         div[class*="st-key-group_"][class*="_gols"] > div,
         div[class*="st-key-group_"][class*="_gols"] [data-baseweb="input"],
-        div[class*="st-key-group_"][class*="_gols"] [data-testid="stTextInputRootElement"] {
+        div[class*="st-key-group_"][class*="_gols"] [data-testid="stTextInputRootElement"],
+        div[class*="st-key-result_"][class*="_gols"] > div,
+        div[class*="st-key-result_"][class*="_gols"] [data-baseweb="input"],
+        div[class*="st-key-result_"][class*="_gols"] [data-testid="stTextInputRootElement"] {
             min-height: 2.55rem;
             overflow: visible !important;
         }
 
-        div[class*="st-key-group_"][class*="_gols"] input {
+        div[class*="st-key-group_"][class*="_gols"] input,
+        div[class*="st-key-result_"][class*="_gols"] input {
             text-align: center;
             height: 2.55rem;
             min-height: 2.55rem;
@@ -494,7 +503,9 @@ def apply_styles(show_sidebar: bool) -> None:
             font-weight: 850;
         }
 
-        div[class*="st-key-group_"][class*="_jogador"] div[data-baseweb="select"] > div {
+        div[class*="st-key-group_"][class*="_jogador"] div[data-baseweb="select"] > div,
+        div[class*="st-key-result_"][class*="_winner"] div[data-baseweb="select"] > div,
+        div[class*="st-key-result_"][class*="_scorer"] div[data-baseweb="select"] > div {
             min-height: 2.8rem;
             border-radius: 10px;
             border-color: #d1b064;
@@ -502,7 +513,9 @@ def apply_styles(show_sidebar: bool) -> None:
             color: #0d1320;
         }
 
-        div[class*="st-key-group_"][class*="_jogador"] div[data-baseweb="select"] * {
+        div[class*="st-key-group_"][class*="_jogador"] div[data-baseweb="select"] *,
+        div[class*="st-key-result_"][class*="_winner"] div[data-baseweb="select"] *,
+        div[class*="st-key-result_"][class*="_scorer"] div[data-baseweb="select"] * {
             font-weight: 700;
         }
 
@@ -599,6 +612,7 @@ def apply_styles(show_sidebar: bool) -> None:
             .st-key-action_groups button,
             .st-key-action_finalistas button,
             .st-key-action_eliminatorias button,
+            .st-key-principal_results button,
             .st-key-principal_dashboard button {
                 min-height: 4.15rem;
                 font-size: 1.14rem;
@@ -631,13 +645,15 @@ def apply_styles(show_sidebar: bool) -> None:
                 font-size: 1.13rem !important;
             }
 
-            div[class*="st-key-group_"][class*="_gols"] input {
+            div[class*="st-key-group_"][class*="_gols"] input,
+            div[class*="st-key-result_"][class*="_gols"] input {
                 height: 2.35rem;
                 min-height: 2.35rem;
                 font-size: 0.95rem;
             }
 
-            div[class*="st-key-group_"][class*="_gols"] {
+            div[class*="st-key-group_"][class*="_gols"],
+            div[class*="st-key-result_"][class*="_gols"] {
                 min-height: 2.85rem;
             }
 
@@ -749,6 +765,15 @@ def supabase_select(table: str, order_by: str | None = None) -> list[dict[str, A
         query = query.order(order_by)
     response = query.execute()
     return response.data or []
+
+
+def supabase_update(
+    table: str,
+    values: dict[str, Any],
+    key_column: str,
+    key_value: str,
+) -> None:
+    get_supabase_client().table(table).update(values).eq(key_column, key_value).execute()
 
 
 def dataframe_from_records(
@@ -1049,6 +1074,42 @@ def parse_goal(raw: Any) -> tuple[int | None, str | None]:
     return number, None
 
 
+def parse_required_goal(raw: Any, label: str) -> tuple[int | None, str | None]:
+    goal, error = parse_goal(raw)
+    if error:
+        return None, f"{label}: {error}"
+    if goal is None:
+        return None, f"{label}: preencha um valor."
+    return goal, None
+
+
+def parse_existing_goal(raw: Any) -> int:
+    try:
+        value = "" if raw is None else str(raw).strip()
+        return int(value) if value else 0
+    except ValueError:
+        return 0
+
+
+def brazil_goal_column(game: pd.Series) -> str | None:
+    if not is_brazil_game(game):
+        return None
+
+    if game["Fase"] == "Grupo":
+        column = f"G{game['Id']}"
+        return column if column in JOGADOR_GOAL_COLUMNS else None
+
+    phase_columns = {
+        "Dezesseisavos": "GD",
+        "Oitavas": "GO",
+        "Quartas": "GQ",
+        "Semifinal": "GS",
+        "Final": "GF",
+        "Terceiro": "GF",
+    }
+    return phase_columns.get(game["Fase"])
+
+
 def flag_path(team_name: str) -> Path | None:
     selecoes = load_selecoes()
     match = selecoes.loc[selecoes["Nome"] == team_name]
@@ -1104,6 +1165,165 @@ def render_match_score_line(game: pd.Series) -> None:
         )
     with cols[6]:
         render_flag(game["Time2"])
+
+
+def render_result_score_line(game: pd.Series) -> None:
+    cols = st.columns([0.13, 0.28, 0.12, 0.05, 0.12, 0.28, 0.13], gap="small")
+    with cols[0]:
+        render_flag(game["Time1"])
+    with cols[1]:
+        st.markdown(f'<div class="team-name">{game["Time1"]}</div>', unsafe_allow_html=True)
+    with cols[2]:
+        st.text_input(
+            f"Gols de {game['Time1']}",
+            key=f"result_{game['Id']}_gols1",
+            max_chars=2,
+            label_visibility="collapsed",
+        )
+    with cols[3]:
+        st.markdown('<div class="match-versus">x</div>', unsafe_allow_html=True)
+    with cols[4]:
+        st.text_input(
+            f"Gols de {game['Time2']}",
+            key=f"result_{game['Id']}_gols2",
+            max_chars=2,
+            label_visibility="collapsed",
+        )
+    with cols[5]:
+        st.markdown(
+            f'<div class="team-name right">{game["Time2"]}</div>',
+            unsafe_allow_html=True,
+        )
+    with cols[6]:
+        render_flag(game["Time2"])
+
+
+def game_option_label(game: pd.Series) -> str:
+    return f"{game['Id']} - {game['Time1']} x {game['Time2']}"
+
+
+def selected_game_by_option(games: pd.DataFrame, option: str) -> pd.Series:
+    game_id = option.split(" - ", 1)[0]
+    return games.loc[games["Id"] == game_id].iloc[0]
+
+
+def initialize_result_draft(game: pd.Series, jogadores: pd.DataFrame) -> None:
+    game_id = game["Id"]
+    if st.session_state.get("result_draft_game") == game_id:
+        return
+
+    st.session_state[f"result_{game_id}_gols1"] = game["Gols1"]
+    st.session_state[f"result_{game_id}_gols2"] = game["Gols2"]
+    st.session_state[f"result_{game_id}_winner"] = (
+        game["Time1"]
+        if game["Resultado"] == "1"
+        else game["Time2"]
+        if game["Resultado"] == "2"
+        else ""
+    )
+
+    goal_column = brazil_goal_column(game)
+    scorer_rows: list[tuple[str, int]] = []
+    if goal_column and goal_column in jogadores.columns:
+        for _, jogador in jogadores.iterrows():
+            goals = parse_existing_goal(jogador.get(goal_column))
+            if goals > 0:
+                scorer_rows.append((jogador["Nome"], goals))
+
+    if not scorer_rows:
+        scorer_rows = [("", 0)]
+
+    st.session_state[f"result_{game_id}_scorer_rows"] = len(scorer_rows)
+    for index, (name, goals) in enumerate(scorer_rows):
+        st.session_state[f"result_{game_id}_scorer_{index}"] = name
+        st.session_state[f"result_{game_id}_scorer_goals_{index}"] = goals
+
+    st.session_state["result_draft_game"] = game_id
+
+
+def result_from_winner(
+    gols1: int,
+    gols2: int,
+    winner: str,
+    time1: str,
+    time2: str,
+) -> str:
+    if winner == time1:
+        return "1"
+    if winner == time2:
+        return "2"
+    if gols1 > gols2:
+        return "1"
+    if gols2 > gols1:
+        return "2"
+    return "E"
+
+
+def save_match_result(
+    game: pd.Series,
+    jogadores: pd.DataFrame,
+    scorer_rows: int,
+) -> tuple[bool, list[str]]:
+    game_id = game["Id"]
+    errors: list[str] = []
+
+    if not game["Time1"] or not game["Time2"]:
+        return False, ["Esse jogo ainda não tem as seleções definidas."]
+
+    gols1, error1 = parse_required_goal(
+        st.session_state.get(f"result_{game_id}_gols1", ""),
+        f"Gols de {game['Time1']}",
+    )
+    gols2, error2 = parse_required_goal(
+        st.session_state.get(f"result_{game_id}_gols2", ""),
+        f"Gols de {game['Time2']}",
+    )
+    if error1:
+        errors.append(error1)
+    if error2:
+        errors.append(error2)
+    if gols1 is None or gols2 is None:
+        return False, errors
+
+    winner = st.session_state.get(f"result_{game_id}_winner", "")
+    result = result_from_winner(gols1, gols2, winner, game["Time1"], game["Time2"])
+
+    scorer_goals: dict[str, int] = {}
+    goal_column = brazil_goal_column(game)
+    if goal_column:
+        for index in range(scorer_rows):
+            player = st.session_state.get(f"result_{game_id}_scorer_{index}", "")
+            goals = int(st.session_state.get(f"result_{game_id}_scorer_goals_{index}", 0))
+            if not player and goals > 0:
+                errors.append("Selecione o jogador para todo campo com gols preenchidos.")
+            if player and player in scorer_goals:
+                errors.append(f"{player} foi selecionado mais de uma vez.")
+            if player:
+                scorer_goals[player] = goals
+        if errors:
+            return False, errors
+
+    supabase_update(
+        "jogos",
+        {
+            "Gols1": str(gols1),
+            "Gols2": str(gols2),
+            "Resultado": result,
+        },
+        "Id",
+        game_id,
+    )
+
+    if goal_column:
+        for player_name in jogadores["Nome"].tolist():
+            supabase_update(
+                "jogadores",
+                {goal_column: str(scorer_goals.get(player_name, 0))},
+                "Nome",
+                player_name,
+            )
+
+    return True, []
 
 
 def participant_names(data: dict[str, Any]) -> list[str]:
@@ -1307,6 +1527,13 @@ def render_principal() -> None:
 
         st.write("")
         render_dashboard_button("principal_dashboard")
+        if participant.get("nome") == "Samuel":
+            if st.button(
+                "Preencher Resultado",
+                key="principal_results",
+                use_container_width=True,
+            ):
+                go_to("resultados")
 
 
 def initialize_group_draft(participant: dict[str, Any]) -> None:
@@ -1523,6 +1750,136 @@ def render_groups() -> None:
                             )
 
 
+def render_resultados_admin() -> None:
+    data = load_participantes()
+    participant = current_participant(data)
+    if participant is None:
+        go_to("login")
+    if participant.get("nome") != "Samuel":
+        st.warning("Essa área é restrita.")
+        if st.button("Voltar", use_container_width=True):
+            go_to("principal")
+        return
+
+    jogos = load_jogos()
+    jogadores = load_jogadores()
+    jogador_options = [""] + sorted(jogadores["Nome"].tolist())
+    game_options = [game_option_label(game) for _, game in jogos.iterrows()]
+
+    with st.container(key="groups_shell"):
+        st.markdown('<div class="groups-title">Preencher Resultado</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="groups-participant">Atualize o placar oficial e, nos jogos do Brasil, os goleadores.</div>',
+            unsafe_allow_html=True,
+        )
+
+        if st.button("Voltar", key="result_back", use_container_width=True):
+            go_to("principal")
+
+        selected_option = st.selectbox(
+            "Jogo",
+            game_options,
+            index=None,
+            placeholder="Selecione o jogo",
+            key="result_game_select",
+        )
+        if not selected_option:
+            return
+
+        game = selected_game_by_option(jogos, selected_option)
+        initialize_result_draft(game, jogadores)
+        game_id = game["Id"]
+
+        st.markdown(
+            f'<div class="match-meta">{format_datetime(game["Data"])} · {game["Fase"]}</div>',
+            unsafe_allow_html=True,
+        )
+        with st.container(border=True):
+            render_result_score_line(game)
+
+        raw_gols1 = st.session_state.get(f"result_{game_id}_gols1", "")
+        raw_gols2 = st.session_state.get(f"result_{game_id}_gols2", "")
+        gols1, _ = parse_goal(raw_gols1)
+        gols2, _ = parse_goal(raw_gols2)
+        auto_winner = ""
+        if gols1 is not None and gols2 is not None:
+            if gols1 > gols2:
+                auto_winner = game["Time1"]
+            elif gols2 > gols1:
+                auto_winner = game["Time2"]
+
+        winner_key = f"result_{game_id}_winner"
+        score_signature_key = f"{winner_key}_score_signature"
+        score_signature = f"{raw_gols1}|{raw_gols2}"
+        if st.session_state.get(score_signature_key) != score_signature:
+            st.session_state[winner_key] = auto_winner
+            st.session_state[score_signature_key] = score_signature
+
+        winner_options = [""] + [team for team in [game["Time1"], game["Time2"]] if team]
+        winner_value = st.session_state.get(winner_key, "")
+        winner_index = (
+            winner_options.index(winner_value)
+            if winner_value in winner_options
+            else 0
+        )
+        st.selectbox(
+            "Vitorioso",
+            winner_options,
+            index=winner_index,
+            key=winner_key,
+            placeholder="Empate",
+        )
+
+        goal_column = brazil_goal_column(game)
+        scorer_rows = st.session_state.get(f"result_{game_id}_scorer_rows", 1)
+        if goal_column:
+            st.markdown("**Goleadores do Brasil**")
+            for index in range(scorer_rows):
+                cols = st.columns([0.74, 0.26], gap="medium")
+                current_player = st.session_state.get(f"result_{game_id}_scorer_{index}", "")
+                player_index = (
+                    jogador_options.index(current_player)
+                    if current_player in jogador_options
+                    else 0
+                )
+                cols[0].selectbox(
+                    "Jogador",
+                    jogador_options,
+                    index=player_index,
+                    key=f"result_{game_id}_scorer_{index}",
+                    placeholder="Selecione um jogador",
+                )
+                cols[1].number_input(
+                    "Gols",
+                    min_value=0,
+                    max_value=9,
+                    step=1,
+                    key=f"result_{game_id}_scorer_goals_{index}",
+                )
+
+            if st.button("Adicionar jogador", key=f"result_{game_id}_add_scorer"):
+                next_index = scorer_rows
+                st.session_state[f"result_{game_id}_scorer_rows"] = scorer_rows + 1
+                st.session_state[f"result_{game_id}_scorer_{next_index}"] = ""
+                st.session_state[f"result_{game_id}_scorer_goals_{next_index}"] = 0
+                rerun()
+
+        if st.button(
+            "Salvar resultado",
+            key=f"result_{game_id}_save",
+            type="primary",
+            use_container_width=True,
+        ):
+            ok, errors = save_match_result(game, jogadores, scorer_rows)
+            if ok:
+                st.success("Resultado salvo no Supabase.")
+                st.session_state["result_draft_game"] = None
+            else:
+                st.error("Corrija os campos antes de salvar.")
+                for error in errors:
+                    st.caption(error)
+
+
 def render_blank_page(title: str) -> None:
     st.title(title)
     if st.button("Voltar", use_container_width=True):
@@ -1555,6 +1912,8 @@ def main() -> None:
         render_blank_page("Eliminatórias")
     elif page == "dashboard":
         render_blank_page("Jogos e Ranking")
+    elif page == "resultados":
+        render_resultados_admin()
     else:
         st.session_state["page"] = "login"
         rerun()
