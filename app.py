@@ -619,48 +619,6 @@ def apply_styles(show_sidebar: bool) -> None:
             display: none;
         }
 
-        .st-key-desktop_ranking {
-            position: fixed !important;
-            top: 9.25rem !important;
-            left: max(1rem, calc((100vw - 1180px) / 2)) !important;
-            width: 318px !important;
-            max-width: 318px !important;
-            max-height: calc(100vh - 10.25rem);
-            overflow-y: auto;
-            z-index: 50;
-            padding-right: 0.15rem;
-            scrollbar-width: thin;
-        }
-
-        .st-key-dashboard_body > div[data-testid="stLayoutWrapper"] > div[data-testid="stHorizontalBlock"] {
-            align-items: flex-start;
-            gap: 1.15rem;
-        }
-
-        .st-key-dashboard_body > div[data-testid="stLayoutWrapper"] > div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:first-child {
-            flex: 0 0 318px !important;
-            width: 318px !important;
-            max-width: 318px !important;
-            min-width: 318px !important;
-        }
-
-        .st-key-dashboard_body div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:first-child {
-            flex: 0 0 318px !important;
-            width: 318px !important;
-            max-width: 318px !important;
-            min-width: 318px !important;
-        }
-
-        .st-key-dashboard_body > div[data-testid="stLayoutWrapper"] > div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:last-child {
-            min-width: 0 !important;
-            flex: 1 1 auto !important;
-        }
-
-        .st-key-dashboard_body div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:last-child {
-            min-width: 0 !important;
-            flex: 1 1 auto !important;
-        }
-
         .ranking-card {
             border: 1px solid #d1b064;
             border-radius: 14px;
@@ -1075,26 +1033,6 @@ def apply_styles(show_sidebar: bool) -> None:
             .st-key-mobile_ranking {
                 display: block;
                 margin-bottom: 1rem;
-            }
-
-            .st-key-dashboard_body [data-testid="stHorizontalBlock"] {
-                flex-direction: column !important;
-                gap: 0 !important;
-            }
-
-            .st-key-dashboard_body [data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:first-child {
-                display: none !important;
-            }
-
-            .st-key-desktop_ranking {
-                display: none !important;
-            }
-
-            .st-key-dashboard_body [data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:last-child {
-                width: 100% !important;
-                max-width: 100% !important;
-                min-width: 0 !important;
-                flex: 1 1 100% !important;
             }
 
             .st-key-mobile_ranking div[data-testid="stExpander"] {
@@ -2049,11 +1987,17 @@ def render_dashboard_results(
                         render_dashboard_guesses(game, participants)
 
 
+def render_dashboard_sidebar(participantes: list[dict[str, Any]]) -> None:
+    with st.sidebar:
+        render_dashboard_ranking(participantes)
+
+
 def render_dashboard() -> None:
     data = load_participantes()
     participantes = data.get("participantes", [])
     jogos = load_jogos()
     selecoes = load_selecoes()
+    render_dashboard_sidebar(participantes)
     neymar_src = image_data_uri(FLAGS_DIR / "neymar.png")
     neymar_html = (
         f'<img src="{escape(neymar_src, quote=True)}" alt="Neymar">'
@@ -2084,12 +2028,7 @@ def render_dashboard() -> None:
                 render_dashboard_ranking(participantes, show_title=False)
 
         with st.container(key="dashboard_body"):
-            left, right = st.columns([0.3, 0.7], gap="large")
-            with left:
-                with st.container(key="desktop_ranking"):
-                    render_dashboard_ranking(participantes)
-            with right:
-                render_dashboard_results(jogos, selecoes, participantes)
+            render_dashboard_results(jogos, selecoes, participantes)
 
 
 def register_dialog(data: dict[str, Any], names: list[str]) -> None:
@@ -2640,9 +2579,9 @@ def main() -> None:
     st.session_state.setdefault("mobile_rules_pending", False)
 
     page = st.session_state["page"]
-    show_sidebar = page in {"login", "principal"}
+    show_sidebar = page in {"login", "principal", "dashboard"}
     apply_styles(show_sidebar)
-    if show_sidebar:
+    if page in {"login", "principal"}:
         render_sidebar()
 
     if page == "login":
