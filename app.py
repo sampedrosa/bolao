@@ -38,6 +38,7 @@ CACHE_TTL_FAST_SECONDS = 10
 CACHE_TTL_MATCHES_SECONDS = 30
 CACHE_TTL_STATIC_SECONDS = 3600
 SUPABASE_PAGE_SIZE = 1000
+BULK_WRITE_BATCH_SIZE = 100
 
 DASHBOARD_PHASES = [
     ("Grupo", "Fase de Grupos"),
@@ -1237,6 +1238,10 @@ def dataframe_from_records(
     return df[columns].fillna("").astype(str)
 
 
+def chunks(items: list[Any], size: int) -> list[list[Any]]:
+    return [items[index:index + size] for index in range(0, len(items), size)]
+
+
 @st.cache_data(ttl=CACHE_TTL_MATCHES_SECONDS, show_spinner=False)
 def load_jogos() -> pd.DataFrame:
     df = dataframe_from_records(supabase_select("jogos"), JOGOS_COLUMNS)
@@ -1372,6 +1377,9 @@ def save_participantes(
         if only_names is not None
         else None
     )
+
+    participant_rows: list[dict[str, Any]] = []
+    version_rows: list[dict[str, Any]] = []
     for participant in data["participantes"]:
         name = participant.get("nome", "")
         normalized_name = normalize_name(name)
@@ -1380,20 +1388,28 @@ def save_participantes(
         if selected_names is not None and normalized_name not in selected_names:
             continue
 
-        client.table("participantes").upsert(
+        participant_rows.append(
             {
                 "nome_normalizado": normalized_name,
                 "nome": name,
-            },
-            on_conflict="nome_normalizado",
-        ).execute()
-        client.table("participantes_versoes").insert(
+            }
+        )
+        version_rows.append(
             {
                 "nome_normalizado": normalized_name,
                 "nome": name,
                 "dados": participant,
             }
+        )
+
+    for batch in chunks(participant_rows, BULK_WRITE_BATCH_SIZE):
+        client.table("participantes").upsert(
+            batch,
+            on_conflict="nome_normalizado",
         ).execute()
+
+    for batch in chunks(version_rows, BULK_WRITE_BATCH_SIZE):
+        client.table("participantes_versoes").insert(batch).execute()
 
     load_participantes_cached.clear()
 
@@ -1879,6 +1895,8 @@ def brazil_player_points(
 
     player_row = jogadores_by_name.get(str(player))
     if not player_row:
+        player_row = jogadores_by_name.get(normalize_name(str(player)))
+    if not player_row:
         return 0
 
     return 3 * parse_existing_goal(player_row.get(goal_column))
@@ -1894,6 +1912,12 @@ def calculate_participant_points(
         str(row["Nome"]): row.to_dict()
         for _, row in jogadores.iterrows()
     }
+    jogadores_by_name.update(
+        {
+            normalize_name(str(row["Nome"])): row.to_dict()
+            for _, row in jogadores.iterrows()
+        }
+    )
 
     total = 0
     for _, game in jogos.iterrows():
