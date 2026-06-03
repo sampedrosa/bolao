@@ -2206,12 +2206,13 @@ def render_dashboard_guesses(
         guess_text, is_empty = format_dashboard_guess(participant, game)
         css_class = "palpite-row empty" if is_empty else "palpite-row"
         rows.append(
-            f"""
-            <div class="{css_class}">
-                <span class="palpite-name">{escape(str(participant.get("nome", "")))}</span>
-                <span class="palpite-score">{escape(guess_text)}</span>
-            </div>
-            """
+            '<div class="'
+            + css_class
+            + '"><span class="palpite-name">'
+            + escape(str(participant.get("nome", "")))
+            + '</span><span class="palpite-score">'
+            + escape(guess_text)
+            + "</span></div>"
         )
 
     st.markdown(
@@ -2247,14 +2248,12 @@ def render_dashboard_results(
                     open_ids = set(st.session_state.get("dashboard_open_guesses", []))
                     is_open = game_id in open_ids
                     label = "Ocultar os palpites" if is_open else "Mostrar os palpites"
-                    if st.button(
+                    st.button(
                         label,
                         key=f"dashboard_palpites_{game_id}",
-                    ):
-                        toggle_dashboard_guesses(game_id)
-                        is_open = game_id in set(
-                            st.session_state.get("dashboard_open_guesses", [])
-                        )
+                        on_click=toggle_dashboard_guesses,
+                        args=(game_id,),
+                    )
 
                     if is_open:
                         render_dashboard_guesses(game, participants)
