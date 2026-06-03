@@ -1537,6 +1537,18 @@ def result_from_score(gols1: int | None, gols2: int | None) -> str | None:
     return "E"
 
 
+def score_value(value: Any) -> int | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if text == "":
+        return None
+    try:
+        return int(text)
+    except ValueError:
+        return None
+
+
 def parse_goal(raw: Any) -> tuple[int | None, str | None]:
     value = "" if raw is None else str(raw).strip()
     if value == "":
@@ -1800,6 +1812,7 @@ def save_match_result(
 
     load_jogos.clear()
     load_jogadores.clear()
+    refresh_all_participant_points()
     return True, []
 
 
@@ -1825,6 +1838,106 @@ def participant_points(participant: dict[str, Any]) -> int:
         return int(participant.get("pontos", 0) or 0)
     except (TypeError, ValueError):
         return 0
+
+
+def game_has_official_score(game: pd.Series) -> bool:
+    return (
+        score_value(game.get("Gols1")) is not None
+        and score_value(game.get("Gols2")) is not None
+        and str(game.get("Resultado", "")).strip() in VALID_RESULTS
+    )
+
+
+def score_prediction_for_game(guess: dict[str, Any], game: pd.Series) -> int:
+    actual_gols1 = score_value(game.get("Gols1"))
+    actual_gols2 = score_value(game.get("Gols2"))
+    guess_gols1 = score_value(guess.get("gols1"))
+    guess_gols2 = score_value(guess.get("gols2"))
+    if None in {actual_gols1, actual_gols2, guess_gols1, guess_gols2}:
+        return 0
+
+    if actual_gols1 == guess_gols1 and actual_gols2 == guess_gols2:
+        return 3
+
+    official_result = str(game.get("Resultado", "")).strip()
+    guessed_result = guess.get("resultado") or result_from_score(guess_gols1, guess_gols2)
+    return 1 if guessed_result == official_result else 0
+
+
+def brazil_player_points(
+    guess: dict[str, Any],
+    game: pd.Series,
+    jogadores_by_name: dict[str, dict[str, Any]],
+) -> int:
+    player = guess.get("jogador")
+    if not player or not is_brazil_game(game):
+        return 0
+
+    goal_column = brazil_goal_column(game)
+    if not goal_column:
+        return 0
+
+    player_row = jogadores_by_name.get(str(player))
+    if not player_row:
+        return 0
+
+    return 3 * parse_existing_goal(player_row.get(goal_column))
+
+
+def calculate_participant_points(
+    participant: dict[str, Any],
+    jogos: pd.DataFrame,
+    jogadores: pd.DataFrame,
+) -> int:
+    guesses = get_guess_map(participant)
+    jogadores_by_name = {
+        str(row["Nome"]): row.to_dict()
+        for _, row in jogadores.iterrows()
+    }
+
+    total = 0
+    for _, game in jogos.iterrows():
+        if game["Fase"] != "Grupo" or not game_has_official_score(game):
+            continue
+
+        guess = guesses.get(game["Id"], {})
+        total += score_prediction_for_game(guess, game)
+        total += brazil_player_points(guess, game, jogadores_by_name)
+
+    return total
+
+
+def update_points_for_participants(
+    data: dict[str, Any],
+    jogos: pd.DataFrame,
+    jogadores: pd.DataFrame,
+    only_names: list[str] | None = None,
+) -> list[str]:
+    selected = {normalize_name(name) for name in only_names} if only_names else None
+    changed_names: list[str] = []
+
+    for participant in data.get("participantes", []):
+        name = participant.get("nome", "")
+        if selected is not None and normalize_name(name) not in selected:
+            continue
+
+        points = calculate_participant_points(participant, jogos, jogadores)
+        if participant_points(participant) != points:
+            participant["pontos"] = points
+            changed_names.append(name)
+
+    return changed_names
+
+
+def refresh_all_participant_points() -> None:
+    data = load_participantes(force_refresh=True)
+    changed_names = update_points_for_participants(
+        data,
+        load_jogos(),
+        load_jogadores(),
+    )
+    if changed_names:
+        save_participantes(data, only_names=changed_names)
 
 
 def ranked_participants(participants: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -2361,6 +2474,12 @@ def save_group_predictions(participant_name: str) -> tuple[bool, list[str]]:
         if guess["jogo"] in updates:
             guess.update(updates[guess["jogo"]])
 
+    update_points_for_participants(
+        data,
+        load_jogos(),
+        load_jogadores(),
+        only_names=[participant_name],
+    )
     save_participantes(data, only_names=[participant_name])
     return True, []
 
