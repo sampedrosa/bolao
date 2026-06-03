@@ -440,25 +440,29 @@ def apply_styles(show_sidebar: bool) -> None:
             font-weight: 850;
         }
 
-        .st-key-group_actions_bar > div[data-testid="stLayoutWrapper"] > div[data-testid="stHorizontalBlock"] button[data-testid="stBaseButton-primary"] {
+        .st-key-group_actions_bar > div[data-testid="stLayoutWrapper"] > div[data-testid="stHorizontalBlock"] button[data-testid="stBaseButton-primary"],
+        .st-key-group_actions_bar > div[data-testid="stLayoutWrapper"] > div[data-testid="stHorizontalBlock"] button[data-testid="stBaseButton-primaryFormSubmit"] {
             background: #1f7a4d !important;
             border-color: #1f7a4d !important;
             color: #ffffff !important;
         }
 
-        .st-key-group_actions_bar > div[data-testid="stLayoutWrapper"] > div[data-testid="stHorizontalBlock"] button[data-testid="stBaseButton-primary"]:hover:enabled {
+        .st-key-group_actions_bar > div[data-testid="stLayoutWrapper"] > div[data-testid="stHorizontalBlock"] button[data-testid="stBaseButton-primary"]:hover:enabled,
+        .st-key-group_actions_bar > div[data-testid="stLayoutWrapper"] > div[data-testid="stHorizontalBlock"] button[data-testid="stBaseButton-primaryFormSubmit"]:hover:enabled {
             background: #17653f !important;
             border-color: #17653f !important;
             color: #ffffff !important;
         }
 
-        .st-key-group_actions_bar > div[data-testid="stLayoutWrapper"] > div[data-testid="stHorizontalBlock"] button[data-testid="stBaseButton-secondary"] {
+        .st-key-group_actions_bar > div[data-testid="stLayoutWrapper"] > div[data-testid="stHorizontalBlock"] button[data-testid="stBaseButton-secondary"],
+        .st-key-group_actions_bar > div[data-testid="stLayoutWrapper"] > div[data-testid="stHorizontalBlock"] button[data-testid="stBaseButton-secondaryFormSubmit"] {
             background: #fffdf7 !important;
             border-color: #d1b064 !important;
             color: #0d1320 !important;
         }
 
-        .st-key-group_actions_bar > div[data-testid="stLayoutWrapper"] > div[data-testid="stHorizontalBlock"] button[data-testid="stBaseButton-secondary"]:hover:enabled {
+        .st-key-group_actions_bar > div[data-testid="stLayoutWrapper"] > div[data-testid="stHorizontalBlock"] button[data-testid="stBaseButton-secondary"]:hover:enabled,
+        .st-key-group_actions_bar > div[data-testid="stLayoutWrapper"] > div[data-testid="stHorizontalBlock"] button[data-testid="stBaseButton-secondaryFormSubmit"]:hover:enabled {
             background: #ffffff !important;
             border-color: #1f7a4d !important;
             color: #17653f !important;
@@ -1007,6 +1011,7 @@ def is_mobile_client() -> bool:
 def go_to(page: str) -> None:
     st.session_state["page"] = page
     st.session_state["confirm_group_back"] = False
+    st.session_state["group_save_dialog_open"] = False
     rerun()
 
 
@@ -1014,6 +1019,7 @@ def login_as(name: str, show_mobile_rules: bool = False) -> None:
     st.session_state["participant_name"] = name
     st.session_state["page"] = "principal"
     st.session_state["group_draft_owner"] = None
+    st.session_state["group_save_dialog_open"] = False
     st.session_state["mobile_rules_pending"] = show_mobile_rules
     rerun()
 
@@ -1412,6 +1418,11 @@ def render_save_errors(errors: list[str]) -> None:
         st.caption(f"E mais {len(errors) - 8} erro(s).")
 
 
+def request_group_save_dialog() -> None:
+    st.session_state["confirm_group_back"] = False
+    st.session_state["group_save_dialog_open"] = True
+
+
 def confirm_save_dialog(participant_name: str) -> None:
     dialog = getattr(st, "dialog", None) or getattr(st, "experimental_dialog", None)
 
@@ -1425,10 +1436,12 @@ def confirm_save_dialog(participant_name: str) -> None:
             if ok:
                 st.session_state["group_draft_owner"] = None
                 st.session_state["confirm_group_back"] = False
+                st.session_state["group_save_dialog_open"] = False
                 st.session_state["page"] = "principal"
                 rerun()
             render_save_errors(errors)
         if no.button("Não", use_container_width=True):
+            st.session_state["group_save_dialog_open"] = False
             rerun()
 
     if dialog is not None:
@@ -1443,10 +1456,12 @@ def confirm_save_dialog(participant_name: str) -> None:
             if ok:
                 st.session_state["group_draft_owner"] = None
                 st.session_state["confirm_group_back"] = False
+                st.session_state["group_save_dialog_open"] = False
                 st.session_state["page"] = "principal"
                 rerun()
             render_save_errors(errors)
         if no.button("Não", use_container_width=True):
+            st.session_state["group_save_dialog_open"] = False
             rerun()
 
 
@@ -1471,10 +1486,11 @@ def render_groups() -> None:
     with st.form("group_predictions_form", clear_on_submit=False, enter_to_submit=False, border=False):
         with st.container(key="group_actions_bar"):
             actions = st.columns(2)
-            save_clicked = actions[0].form_submit_button(
+            actions[0].form_submit_button(
                 "Salvar",
                 type="primary",
                 use_container_width=True,
+                on_click=request_group_save_dialog,
             )
             back_clicked = actions[1].form_submit_button(
                 "Voltar",
@@ -1519,12 +1535,12 @@ def render_groups() -> None:
                                     placeholder="Selecione um jogador",
                                 )
 
-    if save_clicked:
-        st.session_state["confirm_group_back"] = False
-        confirm_save_dialog(participant["nome"])
-
     if back_clicked:
+        st.session_state["group_save_dialog_open"] = False
         st.session_state["confirm_group_back"] = True
+
+    if st.session_state.get("group_save_dialog_open"):
+        confirm_save_dialog(participant["nome"])
 
     if st.session_state.get("confirm_group_back"):
         confirm_back_dialog()
@@ -1542,6 +1558,7 @@ def main() -> None:
     st.session_state.setdefault("page", "login")
     st.session_state.setdefault("participant_name", None)
     st.session_state.setdefault("confirm_group_back", False)
+    st.session_state.setdefault("group_save_dialog_open", False)
     st.session_state.setdefault("mobile_rules_pending", False)
 
     page = st.session_state["page"]
