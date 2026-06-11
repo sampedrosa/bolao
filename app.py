@@ -2500,15 +2500,16 @@ def render_principal() -> None:
             unsafe_allow_html=True,
         )
 
-        render_action_card(
-            "Fase de Grupos",
-            complete=is_group_complete(participant),
-            enabled=now < GROUP_DEADLINE,
-            enabled_text="Disponível até 11/06/2026 às 16:00.",
-            disabled_text="Prazo encerrado em 11/06/2026 às 16:00.",
-            page="grupos",
-            key="action_groups",
-        )
+        if now < GROUP_DEADLINE:
+            render_action_card(
+                "Fase de Grupos",
+                complete=is_group_complete(participant),
+                enabled=True,
+                enabled_text="Disponível até 11/06/2026 às 16:00.",
+                disabled_text="Prazo encerrado em 11/06/2026 às 16:00.",
+                page="grupos",
+                key="action_groups",
+            )
 
         render_action_card(
             "Finalistas",
