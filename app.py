@@ -28,7 +28,8 @@ JOGADORES_COLUMNS = ["Nome", "Posição", "GC1", "GC4", "GC6", "GD", "GO", "GQ",
 JOGADOR_GOAL_COLUMNS = ["GC1", "GC4", "GC6", "GD", "GO", "GQ", "GS", "GF"]
 
 GROUP_DEADLINE = datetime(2026, 6, 12, 16, 0, tzinfo=TZ)
-LOCKED_GROUP_GAME_IDS = {"A1", "D1"}
+REGISTRATION_DEADLINE = datetime(2026, 6, 12, 16, 0, tzinfo=TZ)
+LOCKED_GROUP_GAME_IDS = {"A1", "A2"}
 FINALISTAS_START = datetime(2026, 6, 24, 1, 0, tzinfo=TZ)
 FINALISTAS_END = datetime(2026, 6, 28, 16, 0, tzinfo=TZ)
 ELIMINATORIAS_START = datetime(2026, 6, 24, 1, 0, tzinfo=TZ)
@@ -1940,6 +1941,11 @@ def dashboard_available() -> bool:
     return True
 
 
+def registration_available(now: datetime | None = None) -> bool:
+    current = now or datetime.now(TZ)
+    return current < REGISTRATION_DEADLINE
+
+
 def render_dashboard_button(key: str) -> None:
     if st.button(
         "Visualizar Jogos e Ranking",
@@ -2372,6 +2378,10 @@ def render_dashboard() -> None:
 def register_dialog(data: dict[str, Any], names: list[str]) -> None:
     @st.dialog("Cadastrar")
     def _dialog() -> None:
+        if not registration_available():
+            st.warning("Período de cadastro finalizado")
+            return
+
         st.write("Cadastre seu nome.")
         new_name = st.text_input(
             "Nome",
@@ -2380,6 +2390,10 @@ def register_dialog(data: dict[str, Any], names: list[str]) -> None:
             key="register_name",
         )
         if st.button("Cadastrar", key="dialog_register_btn", use_container_width=True):
+            if not registration_available():
+                st.warning("Período de cadastro finalizado")
+                return
+
             valid, clean_name, message = validate_new_name(new_name, names)
             if not valid:
                 st.error(message)
