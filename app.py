@@ -27,9 +27,8 @@ SELECOES_COLUMNS = ["Nome", "Grupo", "Bandeira"]
 JOGADORES_COLUMNS = ["Nome", "Posição", "GC1", "GC4", "GC6", "GD", "GO", "GQ", "GS", "GF"]
 JOGADOR_GOAL_COLUMNS = ["GC1", "GC4", "GC6", "GD", "GO", "GQ", "GS", "GF"]
 
-GROUP_DEADLINE = datetime(2026, 6, 12, 16, 0, tzinfo=TZ)
-REGISTRATION_DEADLINE = datetime(2026, 6, 12, 16, 0, tzinfo=TZ)
-LOCKED_GROUP_GAME_IDS = {"A1", "A2"}
+GROUP_DEADLINE = datetime(2026, 6, 13, 19, 0, tzinfo=TZ)
+REGISTRATION_DEADLINE = datetime(2026, 6, 13, 19, 0, tzinfo=TZ)
 FINALISTAS_START = datetime(2026, 6, 24, 1, 0, tzinfo=TZ)
 FINALISTAS_END = datetime(2026, 6, 28, 16, 0, tzinfo=TZ)
 ELIMINATORIAS_START = datetime(2026, 6, 24, 1, 0, tzinfo=TZ)
@@ -1500,8 +1499,19 @@ def is_brazil_game(game: pd.Series) -> bool:
     return game["Time1"] == "Brasil" or game["Time2"] == "Brasil"
 
 
-def is_locked_group_game(game_id: Any) -> bool:
-    return str(game_id) in LOCKED_GROUP_GAME_IDS
+def game_datetime(value: Any) -> datetime:
+    if isinstance(value, datetime):
+        parsed = value
+    else:
+        parsed = datetime.fromisoformat(str(value))
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=TZ)
+    return parsed.astimezone(TZ)
+
+
+def is_locked_group_game(game: pd.Series, now: datetime | None = None) -> bool:
+    current = now or datetime.now(TZ)
+    return current >= game_datetime(game["Data"])
 
 
 def is_filled(value: Any) -> bool:
@@ -1511,8 +1521,9 @@ def is_filled(value: Any) -> bool:
 def is_group_complete(participant: dict[str, Any]) -> bool:
     guesses = get_guess_map(participant)
     group_games = load_jogos().query("Fase == 'Grupo'")
+    now = datetime.now(TZ)
     for _, game in group_games.iterrows():
-        if is_locked_group_game(game["Id"]):
+        if is_locked_group_game(game, now):
             continue
         guess = guesses.get(game["Id"], {})
         if not guess_has_complete_score(guess):
@@ -1585,7 +1596,7 @@ def login_as(name: str, show_mobile_rules: bool = False) -> None:
 
 
 def format_datetime(value: str) -> str:
-    dt = datetime.fromisoformat(value)
+    dt = game_datetime(value)
     return dt.strftime("%d/%m/%Y às %H:%M")
 
 
@@ -1691,9 +1702,13 @@ def session_game_score_state(game_id: str) -> tuple[int | None, int | None, str 
     return gols1, gols2, error
 
 
-def session_group_scores_complete(games: pd.DataFrame) -> bool:
+def session_group_scores_complete(
+    games: pd.DataFrame,
+    now: datetime | None = None,
+) -> bool:
+    current = now or datetime.now(TZ)
     for _, game in games.iterrows():
-        if is_locked_group_game(game["Id"]):
+        if is_locked_group_game(game, current):
             continue
         gols1, gols2, error = session_game_score_state(game["Id"])
         if error or gols1 is None or gols2 is None:
@@ -2536,8 +2551,8 @@ def render_principal() -> None:
                 "Fase de Grupos",
                 complete=is_group_complete(participant),
                 enabled=True,
-                enabled_text="Disponível até 12/06/2026 às 16:00.",
-                disabled_text="Prazo encerrado em 12/06/2026 às 16:00.",
+                enabled_text="Disponível até 13/06/2026 às 19:00. Cada jogo fecha no horário de início.",
+                disabled_text="Prazo encerrado em 13/06/2026 às 19:00.",
                 page="grupos",
                 key="action_groups",
             )
@@ -2605,10 +2620,11 @@ def save_group_predictions(participant_name: str) -> tuple[bool, list[str]]:
     errors: list[str] = []
     updates: dict[str, dict[str, Any]] = {}
     group_games = load_jogos().query("Fase == 'Grupo'")
+    now = datetime.now(TZ)
 
     for _, game in group_games.iterrows():
         game_id = game["Id"]
-        if is_locked_group_game(game_id):
+        if is_locked_group_game(game, now):
             continue
 
         raw_gols1 = st.session_state.get(f"group_{game_id}_gols1", "")
@@ -2747,6 +2763,7 @@ def render_groups() -> None:
     jogadores = sorted(set(load_jogadores()["Nome"].tolist()))
     player_options = [""] + jogadores
     group_games = load_jogos().query("Fase == 'Grupo'").copy()
+    now = datetime.now(TZ)
     loading.empty()
 
     with st.container(key="group_actions_bar"):
@@ -2771,13 +2788,13 @@ def render_groups() -> None:
 
         for group in sorted(group_games["Id"].str[0].unique()):
             games_in_group = group_games[group_games["Id"].str.startswith(group)]
-            group_complete = session_group_scores_complete(games_in_group)
+            group_complete = session_group_scores_complete(games_in_group, now)
             group_status = "complete" if group_complete else "pending"
             group_label = f"Grupo {group} · Preenchida" if group_complete else f"Grupo {group}"
             with st.container(key=f"group_expander_{group}_{group_status}"):
                 with st.expander(group_label, expanded=False):
                     for _, game in games_in_group.iterrows():
-                        game_locked = is_locked_group_game(game["Id"])
+                        game_locked = is_locked_group_game(game, now)
                         with st.container(border=True):
                             st.markdown(
                                 f"""
