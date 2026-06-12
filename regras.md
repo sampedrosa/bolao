@@ -3,7 +3,7 @@
 O bolão utiliza um sistema de pontos em todo o período da Copa do Mundo 2026. O participante que, ao final da copa (19/07), pontuar mais, recebe o montante de todos os outros participantes, menos do segundo colocado.
 
 O participante deverá ficar atento as datas para preencher.
-- **Fase de Grupos:** Preencher até 16:00 de 11/06.
+- **Fase de Grupos:** Preencher até 16:00 de 12/06, exceto jogos A1 e D1.
 - **Quatro Finalistas:** Preencher de 01:00 24/06 até 16:00 de 28/06.
 - **Dezesseisavos:** Preencher de 24/06 até o inicío de cada jogo.
 - **Oitavas:** Preencher de 30/06 até o inicío de cada jogo.

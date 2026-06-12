@@ -27,7 +27,8 @@ SELECOES_COLUMNS = ["Nome", "Grupo", "Bandeira"]
 JOGADORES_COLUMNS = ["Nome", "Posição", "GC1", "GC4", "GC6", "GD", "GO", "GQ", "GS", "GF"]
 JOGADOR_GOAL_COLUMNS = ["GC1", "GC4", "GC6", "GD", "GO", "GQ", "GS", "GF"]
 
-GROUP_DEADLINE = datetime(2026, 6, 11, 16, 0, tzinfo=TZ)
+GROUP_DEADLINE = datetime(2026, 6, 12, 16, 0, tzinfo=TZ)
+LOCKED_GROUP_GAME_IDS = {"A1", "D1"}
 FINALISTAS_START = datetime(2026, 6, 24, 1, 0, tzinfo=TZ)
 FINALISTAS_END = datetime(2026, 6, 28, 16, 0, tzinfo=TZ)
 ELIMINATORIAS_START = datetime(2026, 6, 24, 1, 0, tzinfo=TZ)
@@ -1498,6 +1499,10 @@ def is_brazil_game(game: pd.Series) -> bool:
     return game["Time1"] == "Brasil" or game["Time2"] == "Brasil"
 
 
+def is_locked_group_game(game_id: Any) -> bool:
+    return str(game_id) in LOCKED_GROUP_GAME_IDS
+
+
 def is_filled(value: Any) -> bool:
     return value is not None and value != ""
 
@@ -1506,6 +1511,8 @@ def is_group_complete(participant: dict[str, Any]) -> bool:
     guesses = get_guess_map(participant)
     group_games = load_jogos().query("Fase == 'Grupo'")
     for _, game in group_games.iterrows():
+        if is_locked_group_game(game["Id"]):
+            continue
         guess = guesses.get(game["Id"], {})
         if not guess_has_complete_score(guess):
             return False
@@ -1649,7 +1656,12 @@ def coerce_goal_state(key: str) -> None:
     st.session_state[key] = None if error else goal
 
 
-def goal_input(label: str, key: str, max_value: int = 99) -> int | None:
+def goal_input(
+    label: str,
+    key: str,
+    max_value: int = 99,
+    disabled: bool = False,
+) -> int | None:
     coerce_goal_state(key)
     return st.number_input(
         label,
@@ -1660,6 +1672,7 @@ def goal_input(label: str, key: str, max_value: int = 99) -> int | None:
         format="%d",
         key=key,
         placeholder="",
+        disabled=disabled,
         label_visibility="collapsed",
     )
 
@@ -1679,6 +1692,8 @@ def session_game_score_state(game_id: str) -> tuple[int | None, int | None, str 
 
 def session_group_scores_complete(games: pd.DataFrame) -> bool:
     for _, game in games.iterrows():
+        if is_locked_group_game(game["Id"]):
+            continue
         gols1, gols2, error = session_game_score_state(game["Id"])
         if error or gols1 is None or gols2 is None:
             return False
@@ -1730,7 +1745,7 @@ def render_flag(team_name: str, width: int = 34) -> None:
         st.image(str(path), width=width)
 
 
-def render_match_score_line(game: pd.Series) -> None:
+def render_match_score_line(game: pd.Series, disabled: bool = False) -> None:
     cols = st.columns([0.13, 0.28, 0.12, 0.05, 0.12, 0.28, 0.13], gap="small")
     with cols[0]:
         render_flag(game["Time1"])
@@ -1740,6 +1755,7 @@ def render_match_score_line(game: pd.Series) -> None:
         goal_input(
             f"Gols de {game['Time1']}",
             key=f"group_{game['Id']}_gols1",
+            disabled=disabled,
         )
     with cols[3]:
         st.markdown('<div class="match-versus">x</div>', unsafe_allow_html=True)
@@ -1747,6 +1763,7 @@ def render_match_score_line(game: pd.Series) -> None:
         goal_input(
             f"Gols de {game['Time2']}",
             key=f"group_{game['Id']}_gols2",
+            disabled=disabled,
         )
     with cols[5]:
         st.markdown(
@@ -2505,8 +2522,8 @@ def render_principal() -> None:
                 "Fase de Grupos",
                 complete=is_group_complete(participant),
                 enabled=True,
-                enabled_text="Disponível até 11/06/2026 às 16:00.",
-                disabled_text="Prazo encerrado em 11/06/2026 às 16:00.",
+                enabled_text="Disponível até 12/06/2026 às 16:00.",
+                disabled_text="Prazo encerrado em 12/06/2026 às 16:00.",
                 page="grupos",
                 key="action_groups",
             )
@@ -2577,6 +2594,9 @@ def save_group_predictions(participant_name: str) -> tuple[bool, list[str]]:
 
     for _, game in group_games.iterrows():
         game_id = game["Id"]
+        if is_locked_group_game(game_id):
+            continue
+
         raw_gols1 = st.session_state.get(f"group_{game_id}_gols1", "")
         raw_gols2 = st.session_state.get(f"group_{game_id}_gols2", "")
         gols1, error1 = parse_goal(raw_gols1)
@@ -2743,6 +2763,7 @@ def render_groups() -> None:
             with st.container(key=f"group_expander_{group}_{group_status}"):
                 with st.expander(group_label, expanded=False):
                     for _, game in games_in_group.iterrows():
+                        game_locked = is_locked_group_game(game["Id"])
                         with st.container(border=True):
                             st.markdown(
                                 f"""
@@ -2752,9 +2773,11 @@ def render_groups() -> None:
                                 """,
                                 unsafe_allow_html=True,
                             )
-                            render_match_score_line(game)
+                            render_match_score_line(game, disabled=game_locked)
 
-                            if is_brazil_game(game):
+                            if game_locked:
+                                st.caption("Prazo encerrado para este jogo.")
+                            elif is_brazil_game(game):
                                 current_player = st.session_state.get(f"group_{game['Id']}_jogador", "")
                                 index = (
                                     player_options.index(current_player)
