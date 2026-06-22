@@ -3595,27 +3595,43 @@ def render_finalistas() -> None:
             unsafe_allow_html=True,
         )
 
-        left, center, right = st.columns([1, 1, 1], gap="large")
-        with left:
-            render_quadrant_selector(*FINALIST_QUADRANTS[0], jogos, flags_by_team, "left")
-            st.write("")
-            render_quadrant_selector(*FINALIST_QUADRANTS[1], jogos, flags_by_team, "left")
-        with right:
-            render_quadrant_selector(*FINALIST_QUADRANTS[2], jogos, flags_by_team, "right")
-            st.write("")
-            render_quadrant_selector(*FINALIST_QUADRANTS[3], jogos, flags_by_team, "right")
+        if is_mobile_client():
+            for quadrant in FINALIST_QUADRANTS:
+                render_quadrant_selector(*quadrant, jogos, flags_by_team, "left")
+                st.write("")
 
-        candidates = [
-            finalist_choice_from_state(qid)
-            for qid, _, _, _ in FINALIST_QUADRANTS
-            if is_real_team(finalist_choice_from_state(qid))
-        ]
-        with center:
+            candidates = [
+                finalist_choice_from_state(qid)
+                for qid, _, _, _ in FINALIST_QUADRANTS
+                if is_real_team(finalist_choice_from_state(qid))
+            ]
             st.markdown("**Pódio**")
             st.caption("Vencedor, segundo e terceiro lugar")
             with st.container(border=True):
                 for place, label in FINALIST_PODIUM:
                     render_podium_selector(place, label, candidates, flags_by_team)
+        else:
+            left, center, right = st.columns([1, 1, 1], gap="large")
+            with left:
+                render_quadrant_selector(*FINALIST_QUADRANTS[0], jogos, flags_by_team, "left")
+                st.write("")
+                render_quadrant_selector(*FINALIST_QUADRANTS[1], jogos, flags_by_team, "left")
+            with right:
+                render_quadrant_selector(*FINALIST_QUADRANTS[2], jogos, flags_by_team, "right")
+                st.write("")
+                render_quadrant_selector(*FINALIST_QUADRANTS[3], jogos, flags_by_team, "right")
+
+            candidates = [
+                finalist_choice_from_state(qid)
+                for qid, _, _, _ in FINALIST_QUADRANTS
+                if is_real_team(finalist_choice_from_state(qid))
+            ]
+            with center:
+                st.markdown("**Pódio**")
+                st.caption("Vencedor, segundo e terceiro lugar")
+                with st.container(border=True):
+                    for place, label in FINALIST_PODIUM:
+                        render_podium_selector(place, label, candidates, flags_by_team)
 
 
 def render_eliminatorias_menu(
