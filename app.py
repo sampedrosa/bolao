@@ -30,7 +30,7 @@ JOGADOR_GOAL_COLUMNS = ["GC1", "GC4", "GC6", "GD", "GO", "GQ", "GS", "GF"]
 GROUP_DEADLINE = datetime(2026, 6, 13, 19, 0, tzinfo=TZ)
 REGISTRATION_DEADLINE = datetime(2026, 6, 13, 19, 0, tzinfo=TZ)
 FINALISTAS_START = datetime(2026, 6, 24, 1, 0, tzinfo=TZ)
-FINALISTAS_END = datetime(2026, 6, 28, 16, 0, tzinfo=TZ)
+FINALISTAS_END = datetime(2026, 6, 29, 14, 0, tzinfo=TZ)
 ELIMINATORIAS_START = datetime(2026, 6, 24, 1, 0, tzinfo=TZ)
 ELIMINATORIAS_END = datetime(2026, 7, 18, 18, 0, tzinfo=TZ)
 
@@ -43,6 +43,22 @@ BULK_WRITE_BATCH_SIZE = 100
 
 DASHBOARD_PHASES = [
     ("Grupo", "Fase de Grupos"),
+    ("Dezesseisavos", "Dezesseisavos"),
+    ("Oitavas", "Oitavas"),
+    ("Quartas", "Quartas"),
+    ("Semifinal", "Semifinais"),
+    ("Terceiro", "Terceiro Lugar"),
+    ("Final", "Final"),
+]
+
+FINALIST_QUADRANTS = [
+    ("1", "Primeiro Quadrante", "Chave Esquerda Superior", ("01", "03", "04", "06")),
+    ("2", "Segundo Quadrante", "Chave Esquerda Inferior", ("09", "10", "11", "12")),
+    ("3", "Terceiro Quadrante", "Chave Direita Superior", ("02", "05", "07", "08")),
+    ("4", "Quarto Quadrante", "Chave Direita Inferior", ("13", "14", "15", "16")),
+]
+FINALIST_PODIUM = [("1", "Campeão"), ("2", "Vice"), ("3", "Terceiro")]
+KNOCKOUT_PHASES = [
     ("Dezesseisavos", "Dezesseisavos"),
     ("Oitavas", "Oitavas"),
     ("Quartas", "Quartas"),
@@ -389,6 +405,11 @@ def apply_styles(show_sidebar: bool) -> None:
             margin: 4.75rem auto 0 auto;
         }
 
+        .st-key-finalistas_shell {
+            max-width: 860px;
+            margin: 4.75rem auto 0 auto;
+        }
+
         .groups-eyebrow {
             color: #8a6a19;
             font-size: 0.92rem;
@@ -506,6 +527,7 @@ def apply_styles(show_sidebar: bool) -> None:
         }
 
         div[class*="st-key-group_"][class*="_gols"],
+        div[class*="st-key-elim_"][class*="_gols"],
         div[class*="st-key-result_"][class*="_gols"],
         div[class*="st-key-result_"][class*="_scorer_goals"] {
             min-height: 3.15rem;
@@ -515,6 +537,9 @@ def apply_styles(show_sidebar: bool) -> None:
         div[class*="st-key-group_"][class*="_gols"] > div,
         div[class*="st-key-group_"][class*="_gols"] [data-baseweb="input"],
         div[class*="st-key-group_"][class*="_gols"] [data-testid="stTextInputRootElement"],
+        div[class*="st-key-elim_"][class*="_gols"] > div,
+        div[class*="st-key-elim_"][class*="_gols"] [data-baseweb="input"],
+        div[class*="st-key-elim_"][class*="_gols"] [data-testid="stTextInputRootElement"],
         div[class*="st-key-result_"][class*="_gols"] > div,
         div[class*="st-key-result_"][class*="_gols"] [data-baseweb="input"],
         div[class*="st-key-result_"][class*="_gols"] [data-testid="stTextInputRootElement"],
@@ -526,6 +551,7 @@ def apply_styles(show_sidebar: bool) -> None:
         }
 
         div[class*="st-key-group_"][class*="_gols"] input,
+        div[class*="st-key-elim_"][class*="_gols"] input,
         div[class*="st-key-result_"][class*="_gols"] input,
         div[class*="st-key-result_"][class*="_scorer_goals"] input {
             text-align: center;
@@ -542,6 +568,8 @@ def apply_styles(show_sidebar: bool) -> None:
         }
 
         div[class*="st-key-group_"][class*="_jogador"] div[data-baseweb="select"] > div,
+        div[class*="st-key-elim_"][class*="_winner"] div[data-baseweb="select"] > div,
+        div[class*="st-key-finalist_"] div[data-baseweb="select"] > div,
         div[class*="st-key-result_"][class*="_winner"] div[data-baseweb="select"] > div,
         div[class*="st-key-result_"][class*="_scorer"] div[data-baseweb="select"] > div {
             min-height: 2.8rem;
@@ -552,6 +580,8 @@ def apply_styles(show_sidebar: bool) -> None:
         }
 
         div[class*="st-key-group_"][class*="_jogador"] div[data-baseweb="select"] *,
+        div[class*="st-key-elim_"][class*="_winner"] div[data-baseweb="select"] *,
+        div[class*="st-key-finalist_"] div[data-baseweb="select"] *,
         div[class*="st-key-result_"][class*="_winner"] div[data-baseweb="select"] *,
         div[class*="st-key-result_"][class*="_scorer"] div[data-baseweb="select"] * {
             font-weight: 700;
@@ -598,6 +628,63 @@ def apply_styles(show_sidebar: bool) -> None:
             background: #fffdf7 !important;
             box-shadow: 0 8px 18px rgba(41, 28, 9, 0.04);
             padding-bottom: 0.75rem !important;
+        }
+
+        .finalist-card,
+        .podium-card {
+            border: 1px solid #d1b064;
+            border-radius: 12px;
+            background: #fffdf7;
+            box-shadow: 0 8px 20px rgba(41, 28, 9, 0.05);
+            padding: 0.85rem;
+        }
+
+        .finalist-card-title,
+        .podium-label {
+            color: #8a6a19;
+            font-size: 0.82rem;
+            font-weight: 850;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 0.55rem;
+        }
+
+        .finalist-team,
+        .podium-team {
+            display: flex;
+            align-items: center;
+            gap: 0.55rem;
+            min-width: 0;
+            color: #0d1320;
+            font-weight: 850;
+            line-height: 1.15;
+        }
+
+        .finalist-team.right {
+            justify-content: flex-end;
+            text-align: right;
+        }
+
+        .finalist-flag {
+            width: 2.2rem;
+            height: 1.55rem;
+            object-fit: contain;
+            flex: 0 0 auto;
+        }
+
+        .finalistas-help,
+        .stage-note {
+            color: #6f5f3d;
+            font-size: 0.94rem;
+            line-height: 1.4;
+            margin: 0.25rem 0 1rem 0;
+        }
+
+        .knockout-locked {
+            color: #8a6a19;
+            font-size: 0.88rem;
+            font-weight: 750;
+            margin-top: 0.4rem;
         }
 
         .st-key-dashboard_shell {
@@ -992,6 +1079,10 @@ def apply_styles(show_sidebar: bool) -> None:
                 margin-top: 4.6rem;
             }
 
+            .st-key-finalistas_shell {
+                margin-top: 4.6rem;
+            }
+
             .groups-participant {
                 margin-bottom: 0.85rem;
             }
@@ -1016,6 +1107,7 @@ def apply_styles(show_sidebar: bool) -> None:
             }
 
             div[class*="st-key-group_"][class*="_gols"] input,
+            div[class*="st-key-elim_"][class*="_gols"] input,
             div[class*="st-key-result_"][class*="_gols"] input,
             div[class*="st-key-result_"][class*="_scorer_goals"] input {
                 height: 2.62rem;
@@ -1025,6 +1117,7 @@ def apply_styles(show_sidebar: bool) -> None:
             }
 
             div[class*="st-key-group_"][class*="_gols"],
+            div[class*="st-key-elim_"][class*="_gols"],
             div[class*="st-key-result_"][class*="_gols"],
             div[class*="st-key-result_"][class*="_scorer_goals"] {
                 min-height: 3.08rem;
@@ -1065,6 +1158,21 @@ def apply_styles(show_sidebar: bool) -> None:
             .st-key-groups_shell div[data-testid="stImage"] img {
                 width: 24px !important;
                 max-width: 24px !important;
+            }
+
+            .finalist-card,
+            .podium-card {
+                padding: 0.78rem 0.72rem;
+            }
+
+            .finalist-team,
+            .podium-team {
+                font-size: 0.83rem;
+            }
+
+            .finalist-flag {
+                width: 1.75rem;
+                height: 1.24rem;
             }
 
             .match-versus {
@@ -1358,6 +1466,20 @@ def jogo_ids() -> list[str]:
     return load_jogos()["Id"].tolist()
 
 
+def normalize_finalistas(raw_finalistas: Any) -> dict[str, Any]:
+    finalistas = raw_finalistas if isinstance(raw_finalistas, dict) else {}
+    quadrantes = finalistas.get("quadrantes")
+    if not isinstance(quadrantes, dict):
+        quadrantes = {}
+
+    normalized = {str(i): finalistas.get(str(i)) for i in range(1, 5)}
+    normalized["quadrantes"] = {
+        str(i): quadrantes.get(str(i))
+        for i in range(1, 5)
+    }
+    return normalized
+
+
 def normalize_participant(
     participant: dict[str, Any],
     game_ids: list[str] | tuple[str, ...] | None = None,
@@ -1367,8 +1489,7 @@ def normalize_participant(
 
     participant.setdefault("nome", "")
     participant.setdefault("pontos", 0)
-    finalistas = participant.get("finalistas") or {}
-    participant["finalistas"] = {str(i): finalistas.get(str(i)) for i in range(1, 5)}
+    participant["finalistas"] = normalize_finalistas(participant.get("finalistas"))
 
     guesses_by_id = {
         str(guess.get("jogo")): guess
@@ -1518,6 +1639,10 @@ def is_filled(value: Any) -> bool:
     return value is not None and value != ""
 
 
+def is_real_team(value: Any) -> bool:
+    return is_filled(value) and dashboard_team_name(value) != "A definir"
+
+
 def is_group_complete(participant: dict[str, Any]) -> bool:
     guesses = get_guess_map(participant)
     group_games = load_jogos().query("Fase == 'Grupo'")
@@ -1533,7 +1658,12 @@ def is_group_complete(participant: dict[str, Any]) -> bool:
 
 def is_finalistas_complete(participant: dict[str, Any]) -> bool:
     finalistas = participant.get("finalistas", {})
-    return all(is_filled(finalistas.get(str(i))) for i in range(1, 5))
+    quadrantes = finalistas.get("quadrantes", {})
+    return (
+        isinstance(quadrantes, dict)
+        and all(is_real_team(quadrantes.get(str(i))) for i in range(1, 5))
+        and all(is_real_team(finalistas.get(str(i))) for i in range(1, 4))
+    )
 
 
 def is_eliminatorias_complete(participant: dict[str, Any]) -> bool:
@@ -1788,6 +1918,96 @@ def render_match_score_line(game: pd.Series, disabled: bool = False) -> None:
         )
     with cols[6]:
         render_flag(game["Time2"])
+
+
+def flags_lookup(selecoes: pd.DataFrame) -> dict[str, str]:
+    return {
+        str(row["Nome"]): str(row["Bandeira"])
+        for _, row in selecoes.iterrows()
+        if str(row["Nome"]).strip()
+    }
+
+
+def team_flag_html(
+    team_name: str,
+    flags_by_team: dict[str, str],
+    css_class: str = "finalist-flag",
+) -> str:
+    src = dashboard_flag_src(team_name, flags_by_team)
+    if not src:
+        return f'<span class="{css_class}"></span>'
+    return (
+        f'<img class="{css_class}" src="{escape(src, quote=True)}" '
+        f'alt="{escape(team_name)}">'
+    )
+
+
+def render_knockout_score_line(
+    game: pd.Series,
+    flags_by_team: dict[str, str],
+    disabled: bool = False,
+) -> None:
+    game_id = str(game["Id"])
+    team1 = dashboard_team_name(game.get("Time1"))
+    team2 = dashboard_team_name(game.get("Time2"))
+    cols = st.columns([0.13, 0.28, 0.12, 0.05, 0.12, 0.28, 0.13], gap="small")
+    with cols[0]:
+        st.markdown(team_flag_html(team1, flags_by_team), unsafe_allow_html=True)
+    with cols[1]:
+        st.markdown(f'<div class="team-name">{escape(team1)}</div>', unsafe_allow_html=True)
+    with cols[2]:
+        goal_input(
+            f"Gols de {team1}",
+            key=f"elim_{game_id}_gols1",
+            disabled=disabled,
+        )
+    with cols[3]:
+        st.markdown('<div class="match-versus">x</div>', unsafe_allow_html=True)
+    with cols[4]:
+        goal_input(
+            f"Gols de {team2}",
+            key=f"elim_{game_id}_gols2",
+            disabled=disabled,
+        )
+    with cols[5]:
+        st.markdown(
+            f'<div class="team-name right">{escape(team2)}</div>',
+            unsafe_allow_html=True,
+        )
+    with cols[6]:
+        st.markdown(team_flag_html(team2, flags_by_team), unsafe_allow_html=True)
+
+    raw_gols1 = st.session_state.get(f"elim_{game_id}_gols1", "")
+    raw_gols2 = st.session_state.get(f"elim_{game_id}_gols2", "")
+    gols1, _ = parse_goal(raw_gols1)
+    gols2, _ = parse_goal(raw_gols2)
+    if gols1 is None or gols2 is None or not game_teams_defined(game):
+        return
+
+    auto_winner = ""
+    if gols1 > gols2:
+        auto_winner = team1
+    elif gols2 > gols1:
+        auto_winner = team2
+
+    winner_key = f"elim_{game_id}_winner"
+    score_signature_key = f"{winner_key}_score_signature"
+    score_signature = f"{raw_gols1}|{raw_gols2}"
+    if st.session_state.get(score_signature_key) != score_signature:
+        st.session_state[winner_key] = auto_winner
+        st.session_state[score_signature_key] = score_signature
+
+    winner_options = ["", team1, team2]
+    current_winner = st.session_state.get(winner_key, "")
+    winner_index = winner_options.index(current_winner) if current_winner in winner_options else 0
+    st.selectbox(
+        "Vitorioso",
+        winner_options,
+        index=winner_index,
+        key=winner_key,
+        placeholder="Selecione o vencedor",
+        disabled=disabled,
+    )
 
 
 def render_result_score_line(game: pd.Series) -> None:
@@ -2417,7 +2637,7 @@ def register_dialog(data: dict[str, Any], names: list[str]) -> None:
             new_participant = {
                 "nome": clean_name,
                 "pontos": 0,
-                "finalistas": {str(i): None for i in range(1, 5)},
+                "finalistas": normalize_finalistas({}),
                 "palpites": [empty_palpite(game_id) for game_id in jogo_ids()],
             }
             data["participantes"].append(new_participant)
@@ -2443,8 +2663,13 @@ def render_login() -> None:
             unsafe_allow_html=True,
         )
         st.markdown('<div class="login-heading">Login</div>', unsafe_allow_html=True)
+        login_help = (
+            "Se já foi cadastrado, selecione seu nome para Entrar, caso contrário, clique em Cadastrar."
+            if registration_available()
+            else "Se já foi cadastrado, selecione seu nome para Entrar."
+        )
         st.markdown(
-            '<div class="login-help">Se já foi cadastrado, selecione seu nome para Entrar, caso contrário, clique em Cadastrar.</div>',
+            f'<div class="login-help">{login_help}</div>',
             unsafe_allow_html=True,
         )
 
@@ -2467,8 +2692,9 @@ def render_login() -> None:
             ):
                 login_as(selected_name)
 
-        if st.button("Cadastrar", key="login_register_btn", use_container_width=True):
-            register_dialog(data, names)
+        if registration_available():
+            if st.button("Cadastrar", key="login_register_btn", use_container_width=True):
+                register_dialog(data, names)
 
         st.write("")
         render_dashboard_button("login_dashboard")
@@ -2529,6 +2755,7 @@ def render_principal() -> None:
     render_mobile_rules_dialog()
 
     now = datetime.now(TZ)
+    is_admin_user = participant.get("nome") == "Samuel"
     with st.container(key="principal_shell"):
         st.markdown('<div class="principal-eyebrow">Área do Participante</div>', unsafe_allow_html=True)
         st.markdown('<div class="principal-title">Seus palpites</div>', unsafe_allow_html=True)
@@ -2560,9 +2787,13 @@ def render_principal() -> None:
         render_action_card(
             "Finalistas",
             complete=is_finalistas_complete(participant),
-            enabled=FINALISTAS_START <= now < FINALISTAS_END,
-            enabled_text="Disponível de 24/06/2026 às 01:00 até 28/06/2026 às 16:00.",
-            disabled_text="Disponível somente de 24/06/2026 às 01:00 até 28/06/2026 às 16:00.",
+            enabled=is_admin_user or FINALISTAS_START <= now < FINALISTAS_END,
+            enabled_text=(
+                "Liberado para Samuel."
+                if is_admin_user
+                else "Disponível de 24/06/2026 às 01:00 até 29/06/2026 às 14:00."
+            ),
+            disabled_text="Disponível somente de 24/06/2026 às 01:00 até 29/06/2026 às 14:00.",
             page="finalistas",
             key="action_finalistas",
         )
@@ -2570,8 +2801,12 @@ def render_principal() -> None:
         render_action_card(
             "Eliminatórias",
             complete=is_eliminatorias_complete(participant),
-            enabled=ELIMINATORIAS_START <= now < ELIMINATORIAS_END,
-            enabled_text="Disponível de 24/06/2026 às 01:00 até 18/07/2026 às 18:00.",
+            enabled=is_admin_user or ELIMINATORIAS_START <= now < ELIMINATORIAS_END,
+            enabled_text=(
+                "Liberado para Samuel."
+                if is_admin_user
+                else "Disponível de 24/06/2026 às 01:00 até 18/07/2026 às 18:00."
+            ),
             disabled_text="Disponível somente de 24/06/2026 às 01:00 até 18/07/2026 às 18:00.",
             page="eliminatorias",
             key="action_eliminatorias",
@@ -2651,6 +2886,322 @@ def save_group_predictions(participant_name: str) -> tuple[bool, list[str]]:
             "gols2": gols2,
             "resultado": result_from_score(gols1, gols2),
             "jogador": player,
+        }
+
+    if errors:
+        return False, errors
+
+    for guess in participant["palpites"]:
+        if guess["jogo"] in updates:
+            guess.update(updates[guess["jogo"]])
+
+    update_points_for_participants(
+        data,
+        load_jogos(),
+        load_jogadores(),
+        only_names=[participant_name],
+    )
+    save_participantes(data, only_names=[participant_name])
+    return True, []
+
+
+def finalist_clean_choice(value: Any) -> str | None:
+    team = dashboard_team_name(value)
+    if team == "A definir":
+        return None
+    return team if is_filled(team) else None
+
+
+def game_teams_defined(game: pd.Series) -> bool:
+    return (
+        dashboard_team_name(game.get("Time1")) != "A definir"
+        and dashboard_team_name(game.get("Time2")) != "A definir"
+    )
+
+
+def participant_is_admin(participant: dict[str, Any] | None) -> bool:
+    return bool(participant and participant.get("nome") == "Samuel")
+
+
+def quadrant_team_options(jogos: pd.DataFrame, game_ids: tuple[str, ...]) -> list[str]:
+    knockout_games = jogos.loc[jogos["Fase"] == "Dezesseisavos"].copy()
+    options: list[str] = []
+    for game_id in game_ids:
+        matches = knockout_games.loc[knockout_games["Id"] == game_id]
+        if matches.empty:
+            teams = ["A definir", "A definir"]
+        else:
+            game = matches.iloc[0]
+            teams = [
+                dashboard_team_name(game.get("Time1")),
+                dashboard_team_name(game.get("Time2")),
+            ]
+        for team in teams:
+            if team not in options:
+                options.append(team)
+    return options or ["A definir"]
+
+
+def finalist_select_options(
+    base_options: list[str],
+    current: Any,
+    selected_elsewhere: list[str],
+    allow_pending: bool = True,
+) -> list[str]:
+    current_team = dashboard_team_name(current) if is_filled(current) else ""
+    blocked = {
+        normalize_name(team)
+        for team in selected_elsewhere
+        if is_real_team(team)
+    }
+    options = [""]
+    for option in base_options:
+        if option == "A definir" and allow_pending:
+            if option not in options:
+                options.append(option)
+            continue
+        if not is_real_team(option):
+            continue
+        if normalize_name(option) not in blocked or option == current_team:
+            options.append(option)
+    if current_team and current_team not in options:
+        options.append(current_team)
+    return options
+
+
+def finalist_choice_from_state(qid: str) -> str:
+    return st.session_state.get(f"finalist_quadrant_{qid}", "")
+
+
+def finalist_podium_from_state(place: str) -> str:
+    return st.session_state.get(f"finalist_place_{place}", "")
+
+
+def initialize_finalistas_draft(participant: dict[str, Any]) -> None:
+    owner = participant["nome"]
+    if st.session_state.get("finalistas_draft_owner") == owner:
+        return
+
+    finalistas = normalize_finalistas(participant.get("finalistas"))
+    quadrantes = finalistas.get("quadrantes", {})
+    for qid, _, _, _ in FINALIST_QUADRANTS:
+        st.session_state[f"finalist_quadrant_{qid}"] = quadrantes.get(qid) or ""
+    for place, _ in FINALIST_PODIUM:
+        st.session_state[f"finalist_place_{place}"] = finalistas.get(place) or ""
+
+    st.session_state["finalistas_draft_owner"] = owner
+
+
+def save_finalistas_predictions(participant_name: str) -> tuple[bool, list[str]]:
+    data = load_participantes(force_refresh=True)
+    participant = next(
+        (
+            item
+            for item in data.get("participantes", [])
+            if item.get("nome") == participant_name
+        ),
+        None,
+    )
+    if participant is None:
+        return False, ["Participante não encontrado."]
+
+    errors: list[str] = []
+    finalistas = normalize_finalistas(participant.get("finalistas"))
+    quadrantes: dict[str, str | None] = {}
+    chosen_real: list[str] = []
+    for qid, label, _, _ in FINALIST_QUADRANTS:
+        team = finalist_clean_choice(st.session_state.get(f"finalist_quadrant_{qid}", ""))
+        quadrantes[qid] = team
+        if team:
+            normalized = normalize_name(team)
+            if normalized in {normalize_name(existing) for existing in chosen_real}:
+                errors.append(f"{label}: seleção escolhida em mais de um quadrante.")
+            chosen_real.append(team)
+
+    podium: dict[str, str | None] = {}
+    podium_real: list[str] = []
+    chosen_set = {normalize_name(team) for team in chosen_real}
+    for place, label in FINALIST_PODIUM:
+        team = finalist_clean_choice(st.session_state.get(f"finalist_place_{place}", ""))
+        podium[place] = team
+        if not team:
+            continue
+        normalized = normalize_name(team)
+        if normalized not in chosen_set:
+            errors.append(f"{label}: selecione uma seleção escolhida nos quadrantes.")
+        if normalized in {normalize_name(existing) for existing in podium_real}:
+            errors.append(f"{label}: seleção repetida no pódio.")
+        podium_real.append(team)
+
+    if errors:
+        return False, errors
+
+    finalistas["quadrantes"] = quadrantes
+    for place, _ in FINALIST_PODIUM:
+        finalistas[place] = podium.get(place)
+
+    podium_set = {normalize_name(team) for team in podium_real}
+    remaining = [
+        team
+        for team in chosen_real
+        if normalize_name(team) not in podium_set
+    ]
+    finalistas["4"] = remaining[0] if len(remaining) == 1 else None
+
+    participant["finalistas"] = finalistas
+    save_participantes(data, only_names=[participant_name])
+    return True, []
+
+
+def knockout_phase_start(jogos: pd.DataFrame, phase: str) -> datetime | None:
+    games = jogos.loc[jogos["Fase"] == phase]
+    starts: list[datetime] = []
+    for _, game in games.iterrows():
+        try:
+            starts.append(game_datetime(game["Data"]))
+        except (TypeError, ValueError):
+            continue
+    return min(starts) if starts else None
+
+
+def active_knockout_phase(jogos: pd.DataFrame, now: datetime | None = None) -> str:
+    current = now or datetime.now(TZ)
+    phase_starts = [
+        (phase, knockout_phase_start(jogos, phase))
+        for phase, _ in KNOCKOUT_PHASES
+    ]
+    phase_starts = [(phase, start) for phase, start in phase_starts if start is not None]
+    if not phase_starts:
+        return KNOCKOUT_PHASES[0][0]
+
+    active_phase = phase_starts[0][0]
+    for phase, start in phase_starts:
+        if current >= start:
+            active_phase = phase
+        else:
+            break
+    return active_phase
+
+
+def knockout_game_lock_reason(
+    game: pd.Series,
+    active_phase: str,
+    is_admin_user: bool,
+    now: datetime | None = None,
+) -> str | None:
+    current = now or datetime.now(TZ)
+    if not game_teams_defined(game):
+        return "Aguardando definição das seleções."
+    try:
+        if current >= game_datetime(game["Data"]):
+            return "Prazo encerrado para este jogo."
+    except (TypeError, ValueError):
+        return "Data do jogo indisponível."
+    if not is_admin_user and game["Fase"] != active_phase:
+        if phase_index(game["Fase"]) < phase_index(active_phase):
+            return "Etapa encerrada."
+        return "Esta etapa ainda não está liberada."
+    return None
+
+
+def phase_index(phase: str) -> int:
+    for index, (phase_id, _) in enumerate(KNOCKOUT_PHASES):
+        if phase_id == phase:
+            return index
+    return 0
+
+
+def knockout_phase_note(phase: str, active_phase: str, is_admin_user: bool) -> str:
+    if is_admin_user:
+        return "Liberado para Samuel."
+    if phase == active_phase:
+        return "Etapa liberada. Cada jogo fecha no horário de início."
+    if phase_index(phase) < phase_index(active_phase):
+        return "Etapa encerrada."
+    return "Esta etapa ainda não está liberada."
+
+
+def initialize_eliminatorias_draft(participant: dict[str, Any]) -> None:
+    owner = participant["nome"]
+    if st.session_state.get("eliminatorias_draft_owner") == owner:
+        return
+
+    guesses = get_guess_map(participant)
+    knockout_games = load_jogos().query("Fase != 'Grupo'")
+    for _, game in knockout_games.iterrows():
+        game_id = str(game["Id"])
+        guess = guesses.get(game_id, {})
+        st.session_state[f"elim_{game_id}_gols1"] = score_value(guess.get("gols1"))
+        st.session_state[f"elim_{game_id}_gols2"] = score_value(guess.get("gols2"))
+        st.session_state[f"elim_{game_id}_winner"] = (
+            dashboard_team_name(game.get("Time1"))
+            if guess.get("resultado") == "1"
+            else dashboard_team_name(game.get("Time2"))
+            if guess.get("resultado") == "2"
+            else ""
+        )
+    st.session_state["eliminatorias_draft_owner"] = owner
+
+
+def save_eliminatorias_predictions(participant_name: str) -> tuple[bool, list[str]]:
+    data = load_participantes(force_refresh=True)
+    participant = next(
+        (
+            item
+            for item in data.get("participantes", [])
+            if item.get("nome") == participant_name
+        ),
+        None,
+    )
+    if participant is None:
+        return False, ["Participante não encontrado."]
+
+    jogos = load_jogos()
+    now = datetime.now(TZ)
+    active_phase = active_knockout_phase(jogos, now)
+    is_admin_user = participant_is_admin(participant)
+    errors: list[str] = []
+    updates: dict[str, dict[str, Any]] = {}
+
+    knockout_games = jogos.query("Fase != 'Grupo'")
+    for _, game in knockout_games.iterrows():
+        game_id = str(game["Id"])
+        if knockout_game_lock_reason(game, active_phase, is_admin_user, now):
+            continue
+
+        raw_gols1 = st.session_state.get(f"elim_{game_id}_gols1", "")
+        raw_gols2 = st.session_state.get(f"elim_{game_id}_gols2", "")
+        gols1, error1 = parse_goal(raw_gols1)
+        gols2, error2 = parse_goal(raw_gols2)
+        team1 = dashboard_team_name(game.get("Time1"))
+        team2 = dashboard_team_name(game.get("Time2"))
+
+        if error1:
+            errors.append(f"{game_id}: placar de {team1} inválido. {error1}")
+        if error2:
+            errors.append(f"{game_id}: placar de {team2} inválido. {error2}")
+        if not error1 and not error2 and (gols1 is None) != (gols2 is None):
+            errors.append(f"{game_id}: preencha os dois placares ou deixe ambos em branco.")
+
+        result = None
+        if not error1 and not error2 and gols1 is not None and gols2 is not None:
+            winner = st.session_state.get(f"elim_{game_id}_winner", "")
+            if gols1 == gols2:
+                if winner not in {team1, team2}:
+                    errors.append(f"{game_id}: selecione o vitorioso do empate.")
+                else:
+                    result = result_from_winner(gols1, gols2, winner, team1, team2)
+            else:
+                expected_winner = team1 if gols1 > gols2 else team2
+                if winner and winner != expected_winner:
+                    errors.append(f"{game_id}: o vitorioso precisa bater com o placar.")
+                result = "1" if expected_winner == team1 else "2"
+
+        updates[game_id] = {
+            "gols1": gols1,
+            "gols2": gols2,
+            "resultado": result,
+            "jogador": None,
         }
 
     if errors:
@@ -2824,6 +3375,263 @@ def render_groups() -> None:
                                 )
 
 
+def finalist_card_html(
+    title: str,
+    team: Any,
+    flags_by_team: dict[str, str],
+    align: str = "left",
+) -> str:
+    display_team = dashboard_team_name(team)
+    flag = team_flag_html(display_team, flags_by_team)
+    name = f'<span>{escape(display_team)}</span>'
+    team_html = f"{flag}{name}" if align != "right" else f"{name}{flag}"
+    right_class = " right" if align == "right" else ""
+    return (
+        '<div class="finalist-card">'
+        f'<div class="finalist-card-title">{escape(title)}</div>'
+        f'<div class="finalist-team{right_class}">{team_html}</div>'
+        "</div>"
+    )
+
+
+def podium_card_html(
+    label: str,
+    team: Any,
+    flags_by_team: dict[str, str],
+) -> str:
+    display_team = dashboard_team_name(team)
+    return (
+        '<div class="podium-card">'
+        f'<div class="podium-label">{escape(label)}</div>'
+        '<div class="podium-team">'
+        f'{team_flag_html(display_team, flags_by_team)}<span>{escape(display_team)}</span>'
+        "</div></div>"
+    )
+
+
+def selectbox_index(options: list[str], current: Any) -> int:
+    value = dashboard_team_name(current) if is_filled(current) else ""
+    return options.index(value) if value in options else 0
+
+
+def finalist_format(option: str) -> str:
+    return "Selecione" if option == "" else option
+
+
+def render_quadrant_selector(
+    qid: str,
+    title: str,
+    subtitle: str,
+    game_ids: tuple[str, ...],
+    jogos: pd.DataFrame,
+    flags_by_team: dict[str, str],
+    align: str,
+) -> str:
+    current = finalist_choice_from_state(qid)
+    selected_elsewhere = [
+        finalist_choice_from_state(other_qid)
+        for other_qid, _, _, _ in FINALIST_QUADRANTS
+        if other_qid != qid
+    ]
+    options = finalist_select_options(
+        quadrant_team_options(jogos, game_ids),
+        current,
+        selected_elsewhere,
+        allow_pending=True,
+    )
+    key = f"finalist_quadrant_{qid}"
+    if st.session_state.get(key) and st.session_state.get(key) not in options:
+        st.session_state[key] = ""
+
+    st.markdown(f"**{title}**")
+    st.caption(subtitle)
+    selected = st.selectbox(
+        "Seleção",
+        options,
+        index=selectbox_index(options, current),
+        key=key,
+        format_func=finalist_format,
+        label_visibility="collapsed",
+    )
+    st.markdown(finalist_card_html(title, selected, flags_by_team, align), unsafe_allow_html=True)
+    return selected
+
+
+def render_podium_selector(
+    place: str,
+    label: str,
+    candidates: list[str],
+    flags_by_team: dict[str, str],
+) -> str:
+    current = finalist_podium_from_state(place)
+    selected_elsewhere = [
+        finalist_podium_from_state(other_place)
+        for other_place, _ in FINALIST_PODIUM
+        if other_place != place
+    ]
+    options = finalist_select_options(
+        candidates,
+        current,
+        selected_elsewhere,
+        allow_pending=False,
+    )
+    key = f"finalist_place_{place}"
+    if st.session_state.get(key) and st.session_state.get(key) not in options:
+        st.session_state[key] = ""
+
+    selected = st.selectbox(
+        label,
+        options,
+        index=selectbox_index(options, current),
+        key=key,
+        format_func=finalist_format,
+    )
+    st.markdown(podium_card_html(label, selected, flags_by_team), unsafe_allow_html=True)
+    return selected
+
+
+def render_finalistas() -> None:
+    loading = show_loading()
+    data = load_participantes()
+    participant = current_participant(data)
+    if participant is None:
+        go_to("login")
+
+    now = datetime.now(TZ)
+    is_admin_user = participant_is_admin(participant)
+    if not is_admin_user and not (FINALISTAS_START <= now < FINALISTAS_END):
+        loading.empty()
+        st.warning("A tela de Finalistas está fora do período de preenchimento.")
+        if st.button("Voltar", use_container_width=True):
+            go_to("principal")
+        return
+
+    jogos = load_jogos()
+    selecoes = load_selecoes()
+    flags_by_team = flags_lookup(selecoes)
+    initialize_finalistas_draft(participant)
+    loading.empty()
+
+    with st.container(key="group_actions_bar"):
+        actions = st.columns(2)
+        if actions[0].button("Salvar", type="primary", use_container_width=True):
+            ok, errors = save_finalistas_predictions(participant["nome"])
+            if ok:
+                st.session_state["finalistas_draft_owner"] = None
+                st.session_state["page"] = "principal"
+                rerun()
+            render_save_errors(errors)
+
+        if actions[1].button("Voltar", use_container_width=True):
+            st.session_state["finalistas_draft_owner"] = None
+            go_to("principal")
+
+    with st.container(key="finalistas_shell"):
+        st.markdown('<div class="groups-title">Finalistas</div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="groups-participant">Participante: <strong>{participant["nome"]}</strong></div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            '<div class="finalistas-help">Escolha um semifinalista em cada quadrante da chave e depois monte o pódio.</div>',
+            unsafe_allow_html=True,
+        )
+
+        left, center, right = st.columns([1, 1, 1], gap="large")
+        with left:
+            render_quadrant_selector(*FINALIST_QUADRANTS[0], jogos, flags_by_team, "left")
+            st.write("")
+            render_quadrant_selector(*FINALIST_QUADRANTS[1], jogos, flags_by_team, "left")
+        with right:
+            render_quadrant_selector(*FINALIST_QUADRANTS[2], jogos, flags_by_team, "right")
+            st.write("")
+            render_quadrant_selector(*FINALIST_QUADRANTS[3], jogos, flags_by_team, "right")
+
+        candidates = [
+            finalist_choice_from_state(qid)
+            for qid, _, _, _ in FINALIST_QUADRANTS
+            if is_real_team(finalist_choice_from_state(qid))
+        ]
+        with center:
+            st.markdown("**Pódio**")
+            st.caption("Vencedor, segundo e terceiro lugar")
+            with st.container(border=True):
+                for place, label in FINALIST_PODIUM:
+                    render_podium_selector(place, label, candidates, flags_by_team)
+
+
+def render_eliminatorias() -> None:
+    loading = show_loading()
+    data = load_participantes()
+    participant = current_participant(data)
+    if participant is None:
+        go_to("login")
+
+    now = datetime.now(TZ)
+    is_admin_user = participant_is_admin(participant)
+    if not is_admin_user and not (ELIMINATORIAS_START <= now < ELIMINATORIAS_END):
+        loading.empty()
+        st.warning("A tela de Eliminatórias está fora do período de preenchimento.")
+        if st.button("Voltar", use_container_width=True):
+            go_to("principal")
+        return
+
+    jogos = load_jogos()
+    selecoes = load_selecoes()
+    flags_by_team = flags_lookup(selecoes)
+    initialize_eliminatorias_draft(participant)
+    active_phase = active_knockout_phase(jogos, now)
+    loading.empty()
+
+    with st.container(key="group_actions_bar"):
+        actions = st.columns(2)
+        if actions[0].button("Salvar", type="primary", use_container_width=True):
+            ok, errors = save_eliminatorias_predictions(participant["nome"])
+            if ok:
+                st.session_state["eliminatorias_draft_owner"] = None
+                st.session_state["page"] = "principal"
+                rerun()
+            render_save_errors(errors)
+
+        if actions[1].button("Voltar", use_container_width=True):
+            st.session_state["eliminatorias_draft_owner"] = None
+            go_to("principal")
+
+    with st.container(key="groups_shell"):
+        st.markdown('<div class="groups-title">Eliminatórias</div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="groups-participant">Participante: <strong>{participant["nome"]}</strong></div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            '<div class="finalistas-help">Preencha os placares da etapa liberada. Cada jogo fecha exatamente no horário de início.</div>',
+            unsafe_allow_html=True,
+        )
+
+        knockout_games = jogos.query("Fase != 'Grupo'").copy()
+        for phase, label in KNOCKOUT_PHASES:
+            phase_games = knockout_games.loc[knockout_games["Fase"] == phase]
+            if phase_games.empty:
+                continue
+            note = knockout_phase_note(phase, active_phase, is_admin_user)
+            expanded = is_admin_user or phase == active_phase
+            with st.expander(f"{label} · {note}", expanded=expanded):
+                st.markdown(f'<div class="stage-note">{escape(note)}</div>', unsafe_allow_html=True)
+                for _, game in phase_games.iterrows():
+                    reason = knockout_game_lock_reason(game, active_phase, is_admin_user, now)
+                    with st.container(border=True):
+                        st.markdown(
+                            f'<div class="match-meta">{format_datetime(game["Data"])}</div>',
+                            unsafe_allow_html=True,
+                        )
+                        render_knockout_score_line(game, flags_by_team, disabled=bool(reason))
+                        if reason:
+                            st.markdown(
+                                f'<div class="knockout-locked">{escape(reason)}</div>',
+                                unsafe_allow_html=True,
+                            )
+
+
 def render_resultados_admin() -> None:
     loading = show_loading()
     data = load_participantes()
@@ -2970,6 +3778,8 @@ def main() -> None:
     st.session_state.setdefault("participant_name", None)
     st.session_state.setdefault("confirm_group_back", False)
     st.session_state.setdefault("mobile_rules_pending", False)
+    st.session_state.setdefault("finalistas_draft_owner", None)
+    st.session_state.setdefault("eliminatorias_draft_owner", None)
 
     page = st.session_state["page"]
     show_sidebar = page in {"login", "principal", "dashboard"}
@@ -2984,9 +3794,9 @@ def main() -> None:
     elif page == "grupos":
         render_groups()
     elif page == "finalistas":
-        render_blank_page("Finalistas")
+        render_finalistas()
     elif page == "eliminatorias":
-        render_blank_page("Eliminatórias")
+        render_eliminatorias()
     elif page == "dashboard":
         render_dashboard()
     elif page == "resultados":
