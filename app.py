@@ -66,6 +66,13 @@ KNOCKOUT_PHASES = [
     ("Terceiro", "Terceiro Lugar"),
     ("Final", "Final"),
 ]
+KNOCKOUT_PHASE_GROUPS = [
+    ("dezesseisavos", "Preencher Dezesseisavos", ("Dezesseisavos",)),
+    ("oitavas", "Preencher Oitavas", ("Oitavas",)),
+    ("quartas", "Preencher Quartas", ("Quartas",)),
+    ("semifinais", "Preencher Semifinais", ("Semifinal",)),
+    ("finais", "Preencher Finais", ("Terceiro", "Final")),
+]
 
 
 st.set_page_config(
@@ -344,7 +351,8 @@ def apply_styles(show_sidebar: bool) -> None:
         .st-key-action_finalistas button,
         .st-key-action_eliminatorias button,
         .st-key-principal_results button,
-        .st-key-principal_dashboard button {
+        .st-key-principal_dashboard button,
+        div[class*="st-key-elim_menu_"] button {
             min-height: 4.65rem;
             border-radius: 12px;
             font-size: 1.34rem;
@@ -358,7 +366,8 @@ def apply_styles(show_sidebar: bool) -> None:
         .st-key-action_groups button,
         .st-key-action_finalistas button,
         .st-key-action_eliminatorias button,
-        .st-key-principal_results button {
+        .st-key-principal_results button,
+        div[class*="st-key-elim_menu_"] button {
             background: #fffdf7;
             color: #0d1320;
         }
@@ -366,7 +375,8 @@ def apply_styles(show_sidebar: bool) -> None:
         .st-key-action_groups button:hover:enabled,
         .st-key-action_finalistas button:hover:enabled,
         .st-key-action_eliminatorias button:hover:enabled,
-        .st-key-principal_results button:hover:enabled {
+        .st-key-principal_results button:hover:enabled,
+        div[class*="st-key-elim_menu_"] button:hover:enabled {
             border-color: #1f7a4d;
             color: #17653f;
             background: #ffffff;
@@ -374,7 +384,8 @@ def apply_styles(show_sidebar: bool) -> None:
 
         .st-key-action_groups button:disabled,
         .st-key-action_finalistas button:disabled,
-        .st-key-action_eliminatorias button:disabled {
+        .st-key-action_eliminatorias button:disabled,
+        div[class*="st-key-elim_menu_"] button:disabled {
             background: #ece4d5;
             border-color: #d8ccb1;
             color: #8b8270;
@@ -569,6 +580,7 @@ def apply_styles(show_sidebar: bool) -> None:
 
         div[class*="st-key-group_"][class*="_jogador"] div[data-baseweb="select"] > div,
         div[class*="st-key-elim_"][class*="_winner"] div[data-baseweb="select"] > div,
+        div[class*="st-key-elim_"][class*="_jogador"] div[data-baseweb="select"] > div,
         div[class*="st-key-finalist_"] div[data-baseweb="select"] > div,
         div[class*="st-key-result_"][class*="_winner"] div[data-baseweb="select"] > div,
         div[class*="st-key-result_"][class*="_scorer"] div[data-baseweb="select"] > div {
@@ -581,6 +593,7 @@ def apply_styles(show_sidebar: bool) -> None:
 
         div[class*="st-key-group_"][class*="_jogador"] div[data-baseweb="select"] *,
         div[class*="st-key-elim_"][class*="_winner"] div[data-baseweb="select"] *,
+        div[class*="st-key-elim_"][class*="_jogador"] div[data-baseweb="select"] *,
         div[class*="st-key-finalist_"] div[data-baseweb="select"] *,
         div[class*="st-key-result_"][class*="_winner"] div[data-baseweb="select"] *,
         div[class*="st-key-result_"][class*="_scorer"] div[data-baseweb="select"] * {
@@ -1070,7 +1083,8 @@ def apply_styles(show_sidebar: bool) -> None:
             .st-key-action_finalistas button,
             .st-key-action_eliminatorias button,
             .st-key-principal_results button,
-            .st-key-principal_dashboard button {
+            .st-key-principal_dashboard button,
+            div[class*="st-key-elim_menu_"] button {
                 min-height: 4.15rem;
                 font-size: 1.14rem;
             }
@@ -1712,8 +1726,13 @@ def is_mobile_client() -> bool:
 
 
 def go_to(page: str) -> None:
+    current_page = st.session_state.get("page")
     st.session_state["page"] = page
     st.session_state["confirm_group_back"] = False
+    if page == "eliminatorias" and current_page != "eliminatorias":
+        st.session_state["eliminatorias_phase_key"] = None
+    elif page != "eliminatorias":
+        st.session_state["eliminatorias_phase_key"] = None
     rerun()
 
 
@@ -3121,6 +3140,35 @@ def knockout_phase_note(phase: str, active_phase: str, is_admin_user: bool) -> s
     return "Esta etapa ainda não está liberada."
 
 
+def knockout_phase_group(group_key: str | None) -> tuple[str, str, tuple[str, ...]] | None:
+    for group in KNOCKOUT_PHASE_GROUPS:
+        if group[0] == group_key:
+            return group
+    return None
+
+
+def knockout_group_enabled(
+    phases: tuple[str, ...],
+    active_phase: str,
+    is_admin_user: bool,
+) -> bool:
+    return is_admin_user or active_phase in phases
+
+
+def knockout_group_note(
+    phases: tuple[str, ...],
+    active_phase: str,
+    is_admin_user: bool,
+) -> str:
+    if is_admin_user:
+        return "Liberado para Samuel."
+    if active_phase in phases:
+        return "Etapa liberada. Cada jogo fecha no horário de início."
+    if max(phase_index(phase) for phase in phases) < phase_index(active_phase):
+        return "Etapa encerrada."
+    return "Esta etapa ainda não está liberada."
+
+
 def initialize_eliminatorias_draft(participant: dict[str, Any]) -> None:
     owner = participant["nome"]
     if st.session_state.get("eliminatorias_draft_owner") == owner:
@@ -3140,10 +3188,14 @@ def initialize_eliminatorias_draft(participant: dict[str, Any]) -> None:
             if guess.get("resultado") == "2"
             else ""
         )
+        st.session_state[f"elim_{game_id}_jogador"] = guess.get("jogador") or ""
     st.session_state["eliminatorias_draft_owner"] = owner
 
 
-def save_eliminatorias_predictions(participant_name: str) -> tuple[bool, list[str]]:
+def save_eliminatorias_predictions(
+    participant_name: str,
+    phases: tuple[str, ...] | None = None,
+) -> tuple[bool, list[str]]:
     data = load_participantes(force_refresh=True)
     participant = next(
         (
@@ -3166,6 +3218,8 @@ def save_eliminatorias_predictions(participant_name: str) -> tuple[bool, list[st
     knockout_games = jogos.query("Fase != 'Grupo'")
     for _, game in knockout_games.iterrows():
         game_id = str(game["Id"])
+        if phases is not None and game["Fase"] not in phases:
+            continue
         if knockout_game_lock_reason(game, active_phase, is_admin_user, now):
             continue
 
@@ -3197,11 +3251,15 @@ def save_eliminatorias_predictions(participant_name: str) -> tuple[bool, list[st
                     errors.append(f"{game_id}: o vitorioso precisa bater com o placar.")
                 result = "1" if expected_winner == team1 else "2"
 
+        player = st.session_state.get(f"elim_{game_id}_jogador") or None
+        if not is_brazil_game(game):
+            player = None
+
         updates[game_id] = {
             "gols1": gols1,
             "gols2": gols2,
             "resultado": result,
-            "jogador": None,
+            "jogador": player,
         }
 
     if errors:
@@ -3560,6 +3618,129 @@ def render_finalistas() -> None:
                     render_podium_selector(place, label, candidates, flags_by_team)
 
 
+def render_eliminatorias_menu(
+    participant: dict[str, Any],
+    jogos: pd.DataFrame,
+    now: datetime,
+) -> None:
+    active_phase = active_knockout_phase(jogos, now)
+    is_admin_user = participant_is_admin(participant)
+
+    with st.container(key="groups_shell"):
+        st.markdown('<div class="groups-title">Eliminatórias</div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="groups-participant">Participante: <strong>{participant["nome"]}</strong></div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            '<div class="finalistas-help">Escolha a etapa que deseja preencher ou revisar.</div>',
+            unsafe_allow_html=True,
+        )
+
+        for group_key, label, phases in KNOCKOUT_PHASE_GROUPS:
+            enabled = knockout_group_enabled(phases, active_phase, is_admin_user)
+            if st.button(
+                label,
+                key=f"elim_menu_{group_key}",
+                use_container_width=True,
+                disabled=not enabled,
+            ):
+                st.session_state["eliminatorias_phase_key"] = group_key
+                rerun()
+            st.markdown(
+                f'<div class="action-note">{escape(knockout_group_note(phases, active_phase, is_admin_user))}</div>',
+                unsafe_allow_html=True,
+            )
+
+        if st.button("Voltar", key="elim_menu_back", use_container_width=True):
+            go_to("principal")
+
+
+def render_eliminatorias_phase(
+    participant: dict[str, Any],
+    jogos: pd.DataFrame,
+    selecoes: pd.DataFrame,
+    phase_group: tuple[str, str, tuple[str, ...]],
+    now: datetime,
+) -> None:
+    group_key, label, phases = phase_group
+    active_phase = active_knockout_phase(jogos, now)
+    is_admin_user = participant_is_admin(participant)
+    if not knockout_group_enabled(phases, active_phase, is_admin_user):
+        st.warning("Esta etapa não está liberada para preenchimento.")
+        if st.button("Voltar", use_container_width=True):
+            st.session_state["eliminatorias_phase_key"] = None
+            rerun()
+        return
+
+    flags_by_team = flags_lookup(selecoes)
+    jogadores = sorted(set(load_jogadores()["Nome"].tolist()))
+    player_options = [""] + jogadores
+    initialize_eliminatorias_draft(participant)
+
+    with st.container(key="group_actions_bar"):
+        actions = st.columns(2)
+        if actions[0].button("Salvar", type="primary", use_container_width=True):
+            ok, errors = save_eliminatorias_predictions(participant["nome"], phases)
+            if ok:
+                st.session_state["eliminatorias_phase_key"] = None
+                st.session_state["eliminatorias_draft_owner"] = None
+                rerun()
+            render_save_errors(errors)
+
+        if actions[1].button("Voltar", use_container_width=True):
+            st.session_state["eliminatorias_phase_key"] = None
+            rerun()
+
+    with st.container(key="groups_shell"):
+        st.markdown(f'<div class="groups-title">{escape(label)}</div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="groups-participant">Participante: <strong>{participant["nome"]}</strong></div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            '<div class="finalistas-help">Preencha os placares. Se houver Brasil no jogo, escolha também um jogador brasileiro.</div>',
+            unsafe_allow_html=True,
+        )
+
+        phase_games = jogos.loc[jogos["Fase"].isin(phases)].copy()
+        if phase_games.empty:
+            st.caption("Nenhum jogo cadastrado nesta etapa.")
+            return
+
+        for _, game in phase_games.iterrows():
+            reason = knockout_game_lock_reason(game, active_phase, is_admin_user, now)
+            with st.container(border=True):
+                meta = f'{format_datetime(game["Data"])} · {game["Fase"]}'
+                st.markdown(
+                    f'<div class="match-meta">{escape(meta)}</div>',
+                    unsafe_allow_html=True,
+                )
+                render_knockout_score_line(game, flags_by_team, disabled=bool(reason))
+
+                if game_teams_defined(game) and is_brazil_game(game):
+                    current_player = st.session_state.get(f"elim_{game['Id']}_jogador", "")
+                    index = (
+                        player_options.index(current_player)
+                        if current_player in player_options
+                        else 0
+                    )
+                    st.selectbox(
+                        "Nome do Brasileiro que fará gol",
+                        player_options,
+                        index=index,
+                        key=f"elim_{game['Id']}_jogador",
+                        placeholder="Selecione um jogador",
+                        disabled=bool(reason),
+                    )
+
+                if reason:
+                    st.markdown(
+                        f'<div class="knockout-locked">{escape(reason)}</div>',
+                        unsafe_allow_html=True,
+                    )
+
+
 def render_eliminatorias() -> None:
     loading = show_loading()
     data = load_participantes()
@@ -3578,58 +3759,13 @@ def render_eliminatorias() -> None:
 
     jogos = load_jogos()
     selecoes = load_selecoes()
-    flags_by_team = flags_lookup(selecoes)
-    initialize_eliminatorias_draft(participant)
-    active_phase = active_knockout_phase(jogos, now)
+    selected_group = knockout_phase_group(st.session_state.get("eliminatorias_phase_key"))
     loading.empty()
 
-    with st.container(key="group_actions_bar"):
-        actions = st.columns(2)
-        if actions[0].button("Salvar", type="primary", use_container_width=True):
-            ok, errors = save_eliminatorias_predictions(participant["nome"])
-            if ok:
-                st.session_state["eliminatorias_draft_owner"] = None
-                st.session_state["page"] = "principal"
-                rerun()
-            render_save_errors(errors)
-
-        if actions[1].button("Voltar", use_container_width=True):
-            st.session_state["eliminatorias_draft_owner"] = None
-            go_to("principal")
-
-    with st.container(key="groups_shell"):
-        st.markdown('<div class="groups-title">Eliminatórias</div>', unsafe_allow_html=True)
-        st.markdown(
-            f'<div class="groups-participant">Participante: <strong>{participant["nome"]}</strong></div>',
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            '<div class="finalistas-help">Preencha os placares da etapa liberada. Cada jogo fecha exatamente no horário de início.</div>',
-            unsafe_allow_html=True,
-        )
-
-        knockout_games = jogos.query("Fase != 'Grupo'").copy()
-        for phase, label in KNOCKOUT_PHASES:
-            phase_games = knockout_games.loc[knockout_games["Fase"] == phase]
-            if phase_games.empty:
-                continue
-            note = knockout_phase_note(phase, active_phase, is_admin_user)
-            expanded = is_admin_user or phase == active_phase
-            with st.expander(f"{label} · {note}", expanded=expanded):
-                st.markdown(f'<div class="stage-note">{escape(note)}</div>', unsafe_allow_html=True)
-                for _, game in phase_games.iterrows():
-                    reason = knockout_game_lock_reason(game, active_phase, is_admin_user, now)
-                    with st.container(border=True):
-                        st.markdown(
-                            f'<div class="match-meta">{format_datetime(game["Data"])}</div>',
-                            unsafe_allow_html=True,
-                        )
-                        render_knockout_score_line(game, flags_by_team, disabled=bool(reason))
-                        if reason:
-                            st.markdown(
-                                f'<div class="knockout-locked">{escape(reason)}</div>',
-                                unsafe_allow_html=True,
-                            )
+    if selected_group is None:
+        render_eliminatorias_menu(participant, jogos, now)
+    else:
+        render_eliminatorias_phase(participant, jogos, selecoes, selected_group, now)
 
 
 def render_resultados_admin() -> None:
@@ -3780,6 +3916,7 @@ def main() -> None:
     st.session_state.setdefault("mobile_rules_pending", False)
     st.session_state.setdefault("finalistas_draft_owner", None)
     st.session_state.setdefault("eliminatorias_draft_owner", None)
+    st.session_state.setdefault("eliminatorias_phase_key", None)
 
     page = st.session_state["page"]
     show_sidebar = page in {"login", "principal", "dashboard"}
