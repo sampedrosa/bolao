@@ -2000,27 +2000,31 @@ def render_knockout_score_line(
     raw_gols2 = st.session_state.get(f"elim_{game_id}_gols2", "")
     gols1, _ = parse_goal(raw_gols1)
     gols2, _ = parse_goal(raw_gols2)
-    if gols1 is None or gols2 is None or not game_teams_defined(game):
+    if not game_teams_defined(game):
         return
 
     auto_winner = ""
-    if gols1 > gols2:
-        auto_winner = team1
-    elif gols2 > gols1:
-        auto_winner = team2
+    if gols1 is not None and gols2 is not None:
+        if gols1 > gols2:
+            auto_winner = team1
+        elif gols2 > gols1:
+            auto_winner = team2
 
     winner_key = f"elim_{game_id}_winner"
     score_signature_key = f"{winner_key}_score_signature"
     score_signature = f"{raw_gols1}|{raw_gols2}"
     if st.session_state.get(score_signature_key) != score_signature:
-        st.session_state[winner_key] = auto_winner
+        if gols1 is not None and gols2 is not None:
+            current_winner = st.session_state.get(winner_key, "")
+            if auto_winner or current_winner not in {team1, team2}:
+                st.session_state[winner_key] = auto_winner
         st.session_state[score_signature_key] = score_signature
 
     winner_options = ["", team1, team2]
     current_winner = st.session_state.get(winner_key, "")
     winner_index = winner_options.index(current_winner) if current_winner in winner_options else 0
     st.selectbox(
-        "Vitorioso",
+        "Vitorioso (obrigatório)",
         winner_options,
         index=winner_index,
         key=winner_key,
@@ -3238,18 +3242,21 @@ def save_eliminatorias_predictions(
             errors.append(f"{game_id}: preencha os dois placares ou deixe ambos em branco.")
 
         result = None
+        winner = st.session_state.get(f"elim_{game_id}_winner", "")
+        if not error1 and not error2 and gols1 is None and gols2 is None:
+            if winner:
+                errors.append(f"{game_id}: preencha o placar para escolher o vitorioso.")
         if not error1 and not error2 and gols1 is not None and gols2 is not None:
-            winner = st.session_state.get(f"elim_{game_id}_winner", "")
-            if gols1 == gols2:
-                if winner not in {team1, team2}:
-                    errors.append(f"{game_id}: selecione o vitorioso do empate.")
-                else:
-                    result = result_from_winner(gols1, gols2, winner, team1, team2)
+            if winner not in {team1, team2}:
+                errors.append(f"{game_id}: selecione o vitorioso.")
+            elif gols1 == gols2:
+                result = result_from_winner(gols1, gols2, winner, team1, team2)
             else:
                 expected_winner = team1 if gols1 > gols2 else team2
-                if winner and winner != expected_winner:
+                if winner != expected_winner:
                     errors.append(f"{game_id}: o vitorioso precisa bater com o placar.")
-                result = "1" if expected_winner == team1 else "2"
+                else:
+                    result = "1" if expected_winner == team1 else "2"
 
         player = st.session_state.get(f"elim_{game_id}_jogador") or None
         if not is_brazil_game(game):
