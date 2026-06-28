@@ -2148,6 +2148,16 @@ def save_match_result(
         return False, errors
 
     winner = st.session_state.get(f"result_{game_id}_winner", "")
+    if game["Fase"] != "Grupo":
+        if winner not in {game["Time1"], game["Time2"]}:
+            errors.append("Selecione o vitorioso deste jogo.")
+        elif gols1 != gols2:
+            expected_winner = game["Time1"] if gols1 > gols2 else game["Time2"]
+            if winner != expected_winner:
+                errors.append("O vitorioso precisa bater com o placar.")
+        if errors:
+            return False, errors
+
     result = result_from_winner(gols1, gols2, winner, game["Time1"], game["Time2"])
 
     scorer_goals: dict[str, int] = {}
@@ -2236,11 +2246,19 @@ def score_prediction_for_game(guess: dict[str, Any], game: pd.Series) -> int:
     if None in {actual_gols1, actual_gols2, guess_gols1, guess_gols2}:
         return 0
 
+    official_result = str(game.get("Resultado", "")).strip()
+    guessed_result = guess.get("resultado") or result_from_score(guess_gols1, guess_gols2)
+
+    if game["Fase"] != "Grupo":
+        if guessed_result != official_result:
+            return 0
+        if actual_gols1 == guess_gols1 and actual_gols2 == guess_gols2:
+            return 3
+        return 1
+
     if actual_gols1 == guess_gols1 and actual_gols2 == guess_gols2:
         return 3
 
-    official_result = str(game.get("Resultado", "")).strip()
-    guessed_result = guess.get("resultado") or result_from_score(guess_gols1, guess_gols2)
     return 1 if guessed_result == official_result else 0
 
 
@@ -2285,7 +2303,7 @@ def participant_game_points(
     game: pd.Series,
     jogadores_by_name: dict[str, dict[str, Any]],
 ) -> int:
-    if game["Fase"] != "Grupo" or not game_has_official_score(game):
+    if not game_has_official_score(game):
         return 0
 
     guess = get_guess_map(participant).get(str(game["Id"]), {})
@@ -2305,7 +2323,7 @@ def calculate_participant_points(
 
     total = 0
     for _, game in jogos.iterrows():
-        if game["Fase"] != "Grupo" or not game_has_official_score(game):
+        if not game_has_official_score(game):
             continue
 
         guess = guesses.get(game["Id"], {})
@@ -3804,7 +3822,7 @@ def render_resultados_admin() -> None:
             go_to("principal")
         return
 
-    jogos = load_jogos()
+    jogos = load_jogos().query("Fase != 'Grupo'").copy()
     jogadores = load_jogadores()
     jogador_options = [""] + sorted(jogadores["Nome"].tolist())
     game_options = [game_option_label(game) for _, game in jogos.iterrows()]
@@ -3813,7 +3831,7 @@ def render_resultados_admin() -> None:
     with st.container(key="groups_shell"):
         st.markdown('<div class="groups-title">Preencher Resultado</div>', unsafe_allow_html=True)
         st.markdown(
-            '<div class="groups-participant">Atualize o placar oficial e, nos jogos do Brasil, os goleadores.</div>',
+            '<div class="groups-participant">Atualize apenas resultados das eliminatórias e, nos jogos do Brasil, os goleadores.</div>',
             unsafe_allow_html=True,
         )
 
