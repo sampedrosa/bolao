@@ -30,7 +30,7 @@ JOGADOR_GOAL_COLUMNS = ["GC1", "GC4", "GC6", "GD", "GO", "GQ", "GS", "GF"]
 GROUP_DEADLINE = datetime(2026, 6, 13, 19, 0, tzinfo=TZ)
 REGISTRATION_DEADLINE = datetime(2026, 6, 13, 19, 0, tzinfo=TZ)
 FINALISTAS_START = datetime(2026, 6, 24, 1, 0, tzinfo=TZ)
-FINALISTAS_END = datetime(2026, 6, 29, 14, 0, tzinfo=TZ)
+FINALISTAS_END = datetime(2026, 6, 30, 0, 0, tzinfo=TZ)
 ELIMINATORIAS_START = datetime(2026, 6, 24, 1, 0, tzinfo=TZ)
 ELIMINATORIAS_END = datetime(2026, 7, 18, 18, 0, tzinfo=TZ)
 
@@ -2814,9 +2814,9 @@ def render_principal() -> None:
             enabled_text=(
                 "Liberado para Samuel."
                 if is_admin_user
-                else "Disponível de 24/06/2026 às 01:00 até 29/06/2026 às 14:00."
+                else "Disponível de 24/06/2026 às 01:00 até 30/06/2026 às 00:00."
             ),
-            disabled_text="Disponível somente de 24/06/2026 às 01:00 até 29/06/2026 às 14:00.",
+            disabled_text="Disponível somente de 24/06/2026 às 01:00 até 30/06/2026 às 00:00.",
             page="finalistas",
             key="action_finalistas",
         )

@@ -5,7 +5,7 @@ O bolão utiliza um sistema de pontos em todo o período da Copa do Mundo 2026. 
 O participante deverá ficar atento as datas para preencher.
 - **Cadastro:** Disponível até 19:00 de 13/06.
 - **Fase de Grupos:** Acesso disponível até 19:00 de 13/06. Cada jogo pode ser preenchido somente até o seu horário de início.
-- **Quatro Finalistas:** Preencher de 01:00 24/06 até 14:00 de 29/06.
+- **Quatro Finalistas:** Preencher de 01:00 24/06 até 00:00 de 30/06.
 - **Dezesseisavos:** Preencher de 24/06 até o inicío de cada jogo.
 - **Oitavas:** Preencher de 30/06 até o inicío de cada jogo.
 - **Quartas:** Preencher de 05/07 até o inicío de cada jogo.
