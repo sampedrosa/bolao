@@ -3138,18 +3138,50 @@ def knockout_game_lock_reason(
             return "Prazo encerrado para este jogo."
     except (TypeError, ValueError):
         return "Data do jogo indisponível."
-    if not is_admin_user and game["Fase"] != active_phase:
-        if phase_index(game["Fase"]) < phase_index(active_phase):
-            return "Etapa encerrada."
-        return "Esta etapa ainda não está liberada."
+    if (
+        not is_admin_user
+        and game["Fase"] != active_phase
+        and phase_index(game["Fase"]) < phase_index(active_phase)
+    ):
+        return "Etapa encerrada."
     return None
 
 
-def phase_index(phase: str) -> int:
-    for index, (phase_id, _) in enumerate(KNOCKOUT_PHASES):
-        if phase_id == phase:
-            return index
-    return 0
+def knockout_group_has_open_defined_games(
+    jogos: pd.DataFrame,
+    phases: tuple[str, ...],
+    now: datetime | None = None,
+) -> bool:
+    current = now or datetime.now(TZ)
+    phase_games = jogos.loc[jogos["Fase"].isin(phases)]
+    for _, game in phase_games.iterrows():
+        if not game_teams_defined(game):
+            continue
+        try:
+            if current < game_datetime(game["Data"]):
+                return True
+        except (TypeError, ValueError):
+            continue
+    return False
+
+
+def knockout_group_is_past(
+    phases: tuple[str, ...],
+    active_phase: str,
+    jogos: pd.DataFrame,
+    now: datetime | None = None,
+) -> bool:
+    current = now or datetime.now(TZ)
+    if max(phase_index(phase) for phase in phases) >= phase_index(active_phase):
+        return False
+    phase_games = jogos.loc[jogos["Fase"].isin(phases)]
+    for _, game in phase_games.iterrows():
+        try:
+            if current < game_datetime(game["Data"]):
+                return False
+        except (TypeError, ValueError):
+            continue
+    return True
 
 
 def knockout_phase_note(phase: str, active_phase: str, is_admin_user: bool) -> str:
@@ -3159,7 +3191,7 @@ def knockout_phase_note(phase: str, active_phase: str, is_admin_user: bool) -> s
         return "Etapa liberada. Cada jogo fecha no horário de início."
     if phase_index(phase) < phase_index(active_phase):
         return "Etapa encerrada."
-    return "Esta etapa ainda não está liberada."
+    return "Jogos definidos ficam liberados até o horário de início."
 
 
 def knockout_phase_group(group_key: str | None) -> tuple[str, str, tuple[str, ...]] | None:
@@ -3173,22 +3205,42 @@ def knockout_group_enabled(
     phases: tuple[str, ...],
     active_phase: str,
     is_admin_user: bool,
+    jogos: pd.DataFrame | None = None,
+    now: datetime | None = None,
 ) -> bool:
-    return is_admin_user or active_phase in phases
+    return (
+        is_admin_user
+        or active_phase in phases
+        or (
+            jogos is not None
+            and knockout_group_has_open_defined_games(jogos, phases, now)
+        )
+    )
 
 
 def knockout_group_note(
     phases: tuple[str, ...],
     active_phase: str,
     is_admin_user: bool,
+    jogos: pd.DataFrame | None = None,
+    now: datetime | None = None,
 ) -> str:
     if is_admin_user:
         return "Liberado para Samuel."
     if active_phase in phases:
         return "Etapa liberada. Cada jogo fecha no horário de início."
-    if max(phase_index(phase) for phase in phases) < phase_index(active_phase):
+    if jogos is not None and knockout_group_has_open_defined_games(jogos, phases, now):
+        return "Jogos definidos liberados. Os demais aguardam definição."
+    if jogos is not None and knockout_group_is_past(phases, active_phase, jogos, now):
         return "Etapa encerrada."
     return "Esta etapa ainda não está liberada."
+
+
+def phase_index(phase: str) -> int:
+    for index, (phase_id, _) in enumerate(KNOCKOUT_PHASES):
+        if phase_id == phase:
+            return index
+    return 0
 
 
 def initialize_eliminatorias_draft(participant: dict[str, Any]) -> None:
@@ -3679,7 +3731,7 @@ def render_eliminatorias_menu(
         )
 
         for group_key, label, phases in KNOCKOUT_PHASE_GROUPS:
-            enabled = knockout_group_enabled(phases, active_phase, is_admin_user)
+            enabled = knockout_group_enabled(phases, active_phase, is_admin_user, jogos, now)
             if st.button(
                 label,
                 key=f"elim_menu_{group_key}",
@@ -3689,7 +3741,7 @@ def render_eliminatorias_menu(
                 st.session_state["eliminatorias_phase_key"] = group_key
                 rerun()
             st.markdown(
-                f'<div class="action-note">{escape(knockout_group_note(phases, active_phase, is_admin_user))}</div>',
+                f'<div class="action-note">{escape(knockout_group_note(phases, active_phase, is_admin_user, jogos, now))}</div>',
                 unsafe_allow_html=True,
             )
 
@@ -3707,7 +3759,7 @@ def render_eliminatorias_phase(
     group_key, label, phases = phase_group
     active_phase = active_knockout_phase(jogos, now)
     is_admin_user = participant_is_admin(participant)
-    if not knockout_group_enabled(phases, active_phase, is_admin_user):
+    if not knockout_group_enabled(phases, active_phase, is_admin_user, jogos, now):
         st.warning("Esta etapa não está liberada para preenchimento.")
         if st.button("Voltar", use_container_width=True):
             st.session_state["eliminatorias_phase_key"] = None
