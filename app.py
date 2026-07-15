@@ -2313,6 +2313,67 @@ def participant_game_points(
     )
 
 
+def official_winner_and_loser(game: pd.Series) -> tuple[str | None, str | None]:
+    if not game_has_official_score(game):
+        return None, None
+
+    result = str(game.get("Resultado", "")).strip()
+    if result == "1":
+        return str(game.get("Time1", "")).strip(), str(game.get("Time2", "")).strip()
+    if result == "2":
+        return str(game.get("Time2", "")).strip(), str(game.get("Time1", "")).strip()
+    return None, None
+
+
+def actual_final_standings(jogos: pd.DataFrame) -> dict[str, str]:
+    final_match = jogos.loc[jogos["Id"] == "GF"]
+    third_match = jogos.loc[jogos["Id"] == "TL"]
+    if final_match.empty or third_match.empty:
+        return {}
+
+    champion, runner_up = official_winner_and_loser(final_match.iloc[0])
+    third_place, fourth_place = official_winner_and_loser(third_match.iloc[0])
+    standings = {
+        "1": champion,
+        "2": runner_up,
+        "3": third_place,
+        "4": fourth_place,
+    }
+    if not all(is_real_team(team) for team in standings.values()):
+        return {}
+    return {place: str(team) for place, team in standings.items() if team}
+
+
+def finalistas_points(participant: dict[str, Any], jogos: pd.DataFrame) -> int:
+    standings = actual_final_standings(jogos)
+    if not standings:
+        return 0
+
+    finalistas = normalize_finalistas(participant.get("finalistas"))
+    quadrantes = finalistas.get("quadrantes", {})
+
+    actual_semifinalists = {
+        normalize_name(team)
+        for team in standings.values()
+        if is_real_team(team)
+    }
+    predicted_semifinalists = {
+        normalize_name(str(team))
+        for team in quadrantes.values()
+        if is_real_team(team)
+    }
+
+    points = len(predicted_semifinalists & actual_semifinalists)
+    podium_points = {"1": 4, "2": 2, "3": 1}
+    for place, score in podium_points.items():
+        predicted_team = normalize_name(str(finalistas.get(place) or ""))
+        actual_team = normalize_name(standings[place])
+        if predicted_team == actual_team:
+            points += score
+
+    return points
+
+
 def calculate_participant_points(
     participant: dict[str, Any],
     jogos: pd.DataFrame,
@@ -2329,6 +2390,8 @@ def calculate_participant_points(
         guess = guesses.get(game["Id"], {})
         total += score_prediction_for_game(guess, game)
         total += brazil_player_points(guess, game, jogadores_by_name)
+
+    total += finalistas_points(participant, jogos)
 
     return total
 
