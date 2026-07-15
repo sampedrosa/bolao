@@ -991,6 +991,69 @@ def apply_styles(show_sidebar: bool) -> None:
             font-style: italic;
         }
 
+        .semifinalist-note {
+            color: #6f5f3d;
+            font-size: 0.9rem;
+            margin: 0.2rem 0 0.85rem 0;
+            line-height: 1.35;
+        }
+
+        .semifinalist-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.9rem;
+            margin: 0.3rem 0 0.55rem 0;
+        }
+
+        .semifinalist-card {
+            border: 1px solid #d8ccb1;
+            border-radius: 12px;
+            background: #fffdf7;
+            box-shadow: 0 8px 18px rgba(41, 28, 9, 0.04);
+            padding: 0.85rem;
+            min-width: 0;
+        }
+
+        .semifinalist-header {
+            display: flex;
+            align-items: center;
+            gap: 0.58rem;
+            color: #0d1320;
+            font-size: 1.04rem;
+            font-weight: 900;
+            margin-bottom: 0.65rem;
+        }
+
+        .semifinalist-list {
+            display: grid;
+            gap: 0.15rem;
+        }
+
+        .semifinalist-row {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 0.85rem;
+            border-top: 1px solid #efe2bf;
+            padding: 0.45rem 0 0.35rem 0;
+            color: #0d1320;
+            min-width: 0;
+        }
+
+        .semifinalist-position {
+            color: #5c4a23;
+            font-weight: 750;
+            white-space: nowrap;
+        }
+
+        .semifinalist-empty {
+            border-top: 1px solid #efe2bf;
+            color: #9a8d74;
+            font-size: 0.9rem;
+            font-style: italic;
+            padding-top: 0.5rem;
+        }
+
         .st-key-dashboard_back button {
             min-height: 2.9rem;
             border-radius: 10px;
@@ -1289,6 +1352,19 @@ def apply_styles(show_sidebar: bool) -> None:
                 text-align: left;
                 margin-top: 0.35rem;
                 line-height: 1.35;
+            }
+
+            .semifinalist-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .semifinalist-row {
+                display: block;
+            }
+
+            .semifinalist-position {
+                display: block;
+                margin-top: 0.25rem;
             }
         }
         </style>
@@ -2627,6 +2703,132 @@ def render_dashboard_guesses(
     )
 
 
+def actual_semifinalist_teams(jogos: pd.DataFrame) -> list[str]:
+    teams: list[str] = []
+    seen: set[str] = set()
+    for game_id in ("GF", "TL"):
+        match = jogos.loc[jogos["Id"] == game_id]
+        if match.empty:
+            continue
+        game = match.iloc[0]
+        for column in ("Time1", "Time2"):
+            team = dashboard_team_name(game.get(column))
+            normalized = normalize_name(team)
+            if is_real_team(team) and normalized not in seen:
+                teams.append(team)
+                seen.add(normalized)
+    return teams
+
+
+def finalist_position_for_team(participant: dict[str, Any], team: str) -> str | None:
+    finalistas = normalize_finalistas(participant.get("finalistas"))
+    normalized_team = normalize_name(team)
+    for place in ("1", "2", "3", "4"):
+        if normalize_name(str(finalistas.get(place) or "")) == normalized_team:
+            return place
+    return None
+
+
+def finalist_team_points(
+    participant: dict[str, Any],
+    team: str,
+    standings: dict[str, str],
+) -> int:
+    if not standings:
+        return 0
+
+    place = finalist_position_for_team(participant, team)
+    if place is None:
+        return 0
+
+    normalized_team = normalize_name(team)
+    actual_place = next(
+        (
+            standing_place
+            for standing_place, standing_team in standings.items()
+            if normalize_name(standing_team) == normalized_team
+        ),
+        None,
+    )
+    if actual_place is None:
+        return 0
+
+    points = 1
+    if place == actual_place:
+        points += {"1": 4, "2": 2, "3": 1}.get(actual_place, 0)
+    return points
+
+
+def semifinalist_predictions_html(
+    jogos: pd.DataFrame,
+    flags_by_team: dict[str, str],
+    participants: list[dict[str, Any]],
+) -> str:
+    teams = actual_semifinalist_teams(jogos)
+    if not teams:
+        return ""
+
+    standings = actual_final_standings(jogos)
+    place_labels = {
+        "1": "1&ordm; lugar",
+        "2": "2&ordm; lugar",
+        "3": "3&ordm; lugar",
+        "4": "4&ordm; lugar",
+    }
+    notice = (
+        ""
+        if standings
+        else '<div class="semifinalist-note">Os pontos aparecem depois que Final e Terceiro Lugar tiverem resultado oficial.</div>'
+    )
+
+    cards = []
+    for team in teams:
+        rows = []
+        for participant in ranked_participants(participants):
+            place = finalist_position_for_team(participant, team)
+            if place is None:
+                continue
+
+            points = finalist_team_points(participant, team, standings)
+            points_badge = f'<span class="palpite-earned">+{points}</span>' if points > 0 else ""
+            rows.append(
+                '<div class="semifinalist-row"><span class="palpite-name">'
+                + escape(str(participant.get("nome", "")))
+                + points_badge
+                + '</span><span class="semifinalist-position">'
+                + place_labels[place]
+                + "</span></div>"
+            )
+
+        if not rows:
+            rows.append('<div class="semifinalist-empty">Nenhum participante escolheu esta seleção.</div>')
+
+        cards.append(
+            '<div class="semifinalist-card">'
+            + '<div class="semifinalist-header">'
+            + dashboard_flag_html(team, flags_by_team)
+            + f"<span>{escape(team)}</span>"
+            + "</div>"
+            + f'<div class="semifinalist-list">{"".join(rows)}</div>'
+            + "</div>"
+        )
+
+    return notice + f'<div class="semifinalist-grid">{"".join(cards)}</div>'
+
+
+def render_dashboard_semifinalist_predictions(
+    jogos: pd.DataFrame,
+    flags_by_team: dict[str, str],
+    participants: list[dict[str, Any]],
+) -> None:
+    html = semifinalist_predictions_html(jogos, flags_by_team, participants)
+    if not html:
+        return
+
+    with st.expander("Palpites dos Semifinalistas", expanded=False):
+        st.markdown(html, unsafe_allow_html=True)
+
+
 def render_dashboard_results(
     jogos: pd.DataFrame,
     selecoes: pd.DataFrame,
@@ -2665,6 +2867,8 @@ def render_dashboard_results(
 
                     if is_open:
                         render_dashboard_guesses(game, participants, jogadores_by_name)
+
+        render_dashboard_semifinalist_predictions(jogos, flags_by_team, participants)
 
 
 def render_dashboard_sidebar(participantes: list[dict[str, Any]]) -> None:
